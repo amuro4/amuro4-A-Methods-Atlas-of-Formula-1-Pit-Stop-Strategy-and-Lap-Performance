@@ -1,0 +1,5 @@
+recommendation_type,selected_method,reason
+Best regression method,Lasso lambda.min,"Lasso lambda.min had the lowest test RMSE among the regression models, with RMSE = 10.4757."
+Best classification method by AUC,Boosting,"Boosting had the highest AUC among the classification models, with AUC = 0.8608."
+Best interpretable classification option,Classification tree Full tree,Classification tree Full tree was the strongest high-interpretability classification option available in the comparison table.
+Best overall practical recommendation,Use lasso for lap-time regression and boosting for pit-next-lap classification. Use logistic regression or a decision tree when explanation matters more than raw performance.,"The practical recommendation separates prediction from explanation. Flexible models help performance, but simpler models are easier to justify and explain."

@@ -1,0 +1,2356 @@
+\documentclass[11pt,oneside,openany]{book}
+
+% ============================================================
+% MATH 4230 Capstone Project
+% Condensed Main LaTeX Report
+% ============================================================
+
+% ----------------------------
+% Packages
+% ----------------------------
+\usepackage{csvsimple}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{subcaption}
+\usepackage[margin=0.85in]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{multicol}
+\usepackage{microtype}
+
+% ----------------------------
+% Compact formatting
+% ----------------------------
+
+\raggedbottom
+\linespread{1.03}
+
+\setcounter{tocdepth}{0}
+
+\setlength{\parindent}{0.35in}
+\setlength{\parskip}{0pt}
+\setlength{\textfloatsep}{8pt plus 1pt minus 2pt}
+\setlength{\floatsep}{8pt plus 1pt minus 2pt}
+\setlength{\intextsep}{8pt plus 1pt minus 2pt}
+\setlength{\abovedisplayskip}{6pt}
+\setlength{\belowdisplayskip}{6pt}
+
+\captionsetup{
+    font=small,
+    labelfont=bf,
+    skip=4pt
+}
+
+\titleformat{\chapter}[hang]
+  {\normalfont\Large\bfseries}
+  {Chapter \thechapter.}
+  {0.5em}
+  {}
+
+\titleformat{name=\chapter,numberless}[hang]
+  {\normalfont\Large\bfseries}
+  {}
+  {0pt}
+  {}
+
+\titlespacing*{\chapter}{0pt}{-8pt}{10pt}
+\titlespacing*{\section}{0pt}{8pt plus 1pt minus 1pt}{3pt}
+\titlespacing*{\subsection}{0pt}{6pt plus 1pt minus 1pt}{2pt}
+
+\setlist[itemize]{nosep,leftmargin=*}
+\setlist[enumerate]{nosep,leftmargin=*}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue
+}
+
+% ----------------------------
+% Figure helpers
+% ----------------------------
+
+% Upload figures into the Overleaf "figures" folder.
+% In the body, only write the file name.
+\graphicspath{{figures/}{tables/}{./}}
+
+\newcommand{\maybeincludegraphics}[2][]{%
+\IfFileExists{figures/#2}
+{\includegraphics[#1]{figures/#2}}
+{\IfFileExists{tables/#2}
+{\includegraphics[#1]{tables/#2}}
+{\IfFileExists{#2}
+{\includegraphics[#1]{#2}}
+{\fbox{\parbox{0.80\linewidth}{\centering Missing figure file:\\ \texttt{#2}}}}}}%
+}
+
+\newcommand{\chapterquote}[1]{%
+\begin{center}
+\small\textit{#1}
+\end{center}
+\vspace{-0.5em}
+}
+
+\newcommand{\placeholder}{\textit{To be completed after this chapter's script is run.}}
+
+% ============================================================
+% Begin Document
+% ============================================================
+
+\begin{document}
+
+% ----------------------------
+% Title page
+% ----------------------------
+
+\begin{titlepage}
+\centering
+\vspace*{1.25in}
+{\Large\bfseries A Methods Atlas of Formula 1 Pit Stop Strategy and Lap Performance\par}
+\vspace{0.5in}
+{\large Adrian Muro\par}
+\vspace{0.15in}
+{MATH 4230: Applied Statistical Methods for Data Science\par}
+{California State University, Bakersfield\par}
+\vspace{0.25in}
+{Spring 2026\par}
+\vfill
+\end{titlepage}
+
+\frontmatter
+
+% ----------------------------
+% Executive Summary
+% ----------------------------
+
+\chapter*{Executive Summary}
+\addcontentsline{toc}{chapter}{Executive Summary}
+
+This project studies lap-level Formula 1 data with two main goals: explaining lap time performance and predicting whether a driver will pit on the next lap. The regression response is \texttt{lap\_time\_s}, and the classification response is \texttt{pit\_next\_lap}.
+
+The data was split by season. The 2022, 2023, and 2024 seasons were used for training, and the 2025 season was held out as the final test set. This was better than using a random row split because laps from the same race are connected. A random split could leak race context into both training and testing.
+
+Several methods were compared across the project, including linear regression, logistic regression, cross-validation, bootstrap, ridge regression, lasso regression, decision trees, tree ensembles, support vector machines, K-nearest neighbors, PCA, and a neural network. Notably, after considering multiple analytical perspectives, the strongest results came from lasso regression for lap-time prediction and boosting for pit-next-lap classification.
+
+For the regression task, lasso regression was the strongest model. It had the lowest test RMSE for predicting \texttt{lap\_time\_s}, with test RMSE \(=10.4757\). Ridge regression was very close, but lasso was slightly better and also gave a useful variable-selection view.
+
+For the classification task, boosting was the strongest model. It had the best AUC for predicting \texttt{pit\_next\_lap}, with AUC \(=0.8608\). Random forest and bagging were also strong, but boosting had the best overall classification performance.
+
+The main practical conclusion is that the best model depends on the goal. If the goal is prediction, lasso and boosting are the best choices from this project. If the goal is explanation, logistic regression and decision trees are still valuable because they are easier to interpret.
+
+The biggest limitation is that the dataset does not include important race-status and circuit-condition variables, such as Safety Car, Virtual Safety Car, yellow flags, red flags, track temperature, air temperature, circuit length, and pit lane time loss. Because of that, this project should be viewed as a comparison of statistical learning methods, not as a full Formula 1 pit-wall strategy system.
+
+\tableofcontents
+
+\clearpage
+\phantomsection
+\chapter*{List of Figures}
+\addcontentsline{toc}{chapter}{List of Figures}
+
+\begingroup
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{p{0.16\textwidth}p{0.76\textwidth}}
+\toprule
+Figure & Title\\
+\midrule
+\endfirsthead
+
+\toprule
+Figure & Title\\
+\midrule
+\endhead
+
+\bottomrule
+\endlastfoot
+
+2.1 & Lap time distribution in the cleaned dataset.\\
+2.2 & Class balance for the pit-next-lap response.\\
+2.3 & Lap time by tire compound.\\
+2.4 & Distribution of tire life.\\
+2.5 & Distribution of race progress.\\
+2.6 & Correlation heatmap for numeric predictors.\\
+2.7 & Observed pit-next-lap rate by tire life.\\
+2.8 & Observed pit-next-lap rate by race progress.\\
+3.1 & Simple linear regression fit and residual check.\\
+4.1 & Multiple linear regression model comparison and compound dummy-variable effects.\\
+4.2 & Multicollinearity and subset-selection checks for MLR.\\
+4.3 & Diagnostics for the Full Context MLR model.\\
+5.1 & Logistic regression odds ratios and tire-life probability pattern.\\
+5.2 & Classification performance for logistic regression.\\
+5.3 & Classification metrics across probability thresholds.\\
+6.1 & Regression cross-validation results by fold.\\
+6.2 & Classification cross-validation results by fold.\\
+6.3 & Bootstrap distribution of the tire-life slope.\\
+7.1 & Cross-validation curves for ridge and lasso.\\
+7.2 & Test RMSE comparison for ridge and lasso.\\
+7.3 & Top lasso coefficients kept using \texttt{lambda.min}.\\
+8.1 & CP tuning curves for the regression and classification trees.\\
+8.2 & Regression tree test RMSE.\\
+8.3 & Regression tree for lap time.\\
+8.4 & Classification tree test performance.\\
+8.5 & Classification tree for pit-next-lap prediction.\\
+9.1 & Regression ensemble test RMSE.\\
+9.2 & Classification ensemble test performance.\\
+9.3 & Random forest variable importance for regression and classification.\\
+9.4 & Boosting variable importance for regression and classification.\\
+10.1 & SVM test performance.\\
+10.2 & SVM ROC curves.\\
+11.1 & KNN cross-validation error curve.\\
+11.2 & KNN test performance.\\
+12.1 & PCA scree plot.\\
+12.2 & PC1 vs PC2 plot colored by pit-next-lap status.\\
+13.1 & Neural network chapter test performance.\\
+
+\end{longtable}
+\endgroup
+
+\clearpage
+\phantomsection
+\chapter*{List of Tables}
+\addcontentsline{toc}{chapter}{List of Tables}
+
+\begingroup
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{p{0.16\textwidth}p{0.76\textwidth}}
+\toprule
+Table & Title\\
+\midrule
+\endfirsthead
+
+\toprule
+Table & Title\\
+\midrule
+\endhead
+
+\bottomrule
+\endlastfoot
+
+2.1 & Main variables used in the cleaned Formula 1 modeling dataset.\\
+2.2 & Summary statistics for numeric variables.\\
+6.1 & Grouped 5-fold cross-validation fold summary.\\
+6.2 & Regression cross-validation summary.\\
+6.3 & Classification cross-validation summary.\\
+6.4 & Bootstrap confidence interval for the tire-life slope.\\
+7.1 & Model matrix summary for ridge and lasso regression.\\
+7.2 & Cross-validated lambda choices for ridge and lasso.\\
+7.3 & Test performance for regularized regression models.\\
+7.4 & Lasso variables kept by original variable group using \texttt{lambda.min}.\\
+8.1 & Decision tree data summary.\\
+8.2 & CP tuning summary for decision trees.\\
+8.3 & Decision tree size summary.\\
+8.4 & Regression tree test performance.\\
+8.5 & Classification tree test performance.\\
+8.6 & Main split variables in the decision trees.\\
+9.1 & Tree ensemble data summary.\\
+9.2 & Tree ensemble model settings.\\
+9.3 & Out-of-bag error summary.\\
+9.4 & Boosting model summary.\\
+9.5 & Regression ensemble test performance.\\
+9.6 & Classification ensemble test performance.\\
+10.1 & SVM data summary.\\
+10.2 & SVM tuning summary.\\
+10.3 & SVM test performance on the 2025 test set.\\
+11.1 & KNN data summary.\\
+11.2 & KNN cross-validation results.\\
+11.3 & KNN test performance on the 2025 test set.\\
+12.1 & PCA data summary.\\
+12.2 & PCA variance explained.\\
+12.3 & Top PCA loadings for the first three principal components.\\
+13.1 & Neural network data summary.\\
+13.2 & Neural network tuning results.\\
+13.3 & Neural network chapter test performance.\\
+14.1 & Regression method comparison.\\
+14.2 & Classification method comparison.\\
+14.3 & Final model recommendations.\\
+
+\end{longtable}
+\endgroup
+
+\mainmatter
+
+% ============================================================
+% Chapter 1
+% ============================================================
+
+\chapter{Introduction and Statistical Thinking}
+
+\section{Project Motivation}
+
+Formula 1 strategy depends on both speed and timing. A driver needs to be fast, but the team also needs to decide when a pit stop is worth the time loss. This project uses lap-level Formula 1 data to study both ideas.
+
+The project is not trying to recreate a full real-time Formula 1 strategy system. A real team would have more information, including weather, safety car status, traffic, tire temperatures, circuit details, and live strategy context. Here, the goal is to use the available data to compare the main methods from MATH 4230 and explain what each method adds.
+
+\section{Main Question and Responses}
+
+The main project question is:
+
+\[
+\text{Can lap-level Formula 1 race information explain lap time and predict next-lap pit stops?}
+\]
+
+This gives the project both a regression problem and a classification problem. The regression response is \texttt{lap\_time\_s}, the lap time measured in seconds. The classification response is \texttt{pit\_next\_lap}, which tells whether the driver pits on the following lap.
+
+\section{Research Questions}
+
+The chapter questions are:
+
+\begin{multicols}{2}
+\begin{enumerate}
+    \item How strongly does tire life explain lap time?
+    \item How well do multiple predictors explain lap time?
+    \item Do compounds differ after controlling for context?
+    \item Which predictors create multicollinearity?
+    \item Which smaller predictor set is most useful?
+    \item Which variables predict pitting next lap?
+    \item How does tire life relate to pit rate?
+    \item How does race progress relate to pit rate?
+    \item How reliable are models under CV?
+    \item How uncertain are key estimated effects?
+    \item Does ridge improve lap-time prediction?
+    \item Which variables does lasso keep?
+    \item What rules do decision trees find?
+    \item Do ensembles improve prediction?
+    \item Do SVM, KNN, or neural nets improve classification?
+    \item Which model should a strategist trust?
+\end{enumerate}
+\end{multicols}
+
+\section{Train-Test Split}
+
+The training data contains the 2022, 2023, and 2024 seasons. The 2025 season is held out as the final test set. A year-based split is more realistic than a random row split because laps from the same race are connected. This helps avoid leaking very similar race information across training and testing.
+
+\section{Statistical Thinking Statement}
+
+Lap time and pit strategy have a lot of natural variation. They depend on tire age, race progress, driver behavior, track position, race status, weather, traffic, and strategy choices. Since the dataset does not include every race condition, I do not expect one model to explain everything. The goal is to compare methods honestly and decide which ones are useful for interpretation, prediction, or both.
+
+% ============================================================
+% Chapter 2
+% ============================================================
+
+\chapter{Dataset Profile and Exploratory Data Analysis}
+\chapterquote{Before modeling, the dataset needed to be checked for structure, missingness, class balance, and obvious patterns.}
+
+\section{Dataset Source and Provenance}
+
+The dataset is the F1 Strategy Dataset: Pit Stop Prediction dataset from Kaggle, published by the Kaggle user aadigupta1601. It was accessed and downloaded on May 17, 2026 \cite{kaggle_f1_strategy}. The cleaned modeling data has one row per driver-lap observation and includes race progress, tire information, position, lap time, and pit-stop indicators.
+
+This dataset works for the project because it supports both required response types. The regression response is \texttt{lap\_time\_s}, which measures lap time in seconds. The classification response is \texttt{pit\_next\_lap}, which records whether the driver pits on the following lap.
+
+\section{Main Variables}
+
+\begin{table}[H]
+\centering
+\caption{Main variables used in the cleaned Formula 1 modeling dataset.}
+\label{tab:main_variables}
+\small
+\begin{tabular}{lll}
+\toprule
+Variable & Type & Description \\
+\midrule
+\texttt{year} & Numeric & Season year \\
+\texttt{race} & Categorical & Race or session name \\
+\texttt{driver} & Categorical & Driver abbreviation \\
+\texttt{lap\_number} & Numeric & Lap number within the race \\
+\texttt{position} & Numeric & Driver position on the lap \\
+\texttt{lap\_time\_s} & Numeric & Lap time in seconds \\
+\texttt{stint} & Numeric & Tire stint number \\
+\texttt{tyre\_life} & Numeric & Number of laps on the tire \\
+\texttt{compound} & Categorical & Tire compound \\
+\texttt{race\_progress} & Numeric & Progress through the race from 0 to 1 \\
+\texttt{pit\_stop} & Categorical & Whether the driver pitted on the current lap \\
+\texttt{pit\_next\_lap} & Categorical & Whether the driver pitted on the next lap \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Summary Statistics}
+
+Table \ref{tab:summary_statistics} gives the main summary statistics for the numeric variables in the cleaned training dataset. The variables are sorted alphabetically. The table includes the number of non-missing observations, mean, standard deviation, median, and missing percentage. The interquartile range of the residual velocity metric confirms the seasonal stratification pattern.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Summary statistics for numeric variables. The table reports non-missing \(n\), mean rounded to the nearest integer, standard deviation rounded to three decimals, median rounded to three decimals, and missing percentage.}
+\label{tab:summary_statistics}
+\begin{tabular}{lrrrrr}
+\toprule
+Variable & \(n\) & Mean & SD & Median & Missing \%\\
+\midrule
+\texttt{compound\_encoded} & 74331 & 2 & 1.389 & 2.000 & 0\\
+\texttt{cumulative\_degradation} & 74331 & -25 & 49.494 & -20.832 & 0\\
+\texttt{lap\_number} & 74331 & 30 & 18.135 & 29.000 & 0\\
+\texttt{lap\_time\_delta} & 74331 & 0 & 52.019 & -0.018 & 0\\
+\texttt{lap\_time\_s} & 74331 & 93 & 37.913 & 91.429 & 0\\
+\texttt{normalized\_tyre\_life} & 74331 & 0 & 0.268 & 0.351 & 0\\
+\texttt{position} & 74331 & 10 & 5.396 & 10.000 & 0\\
+\texttt{position\_change} & 74331 & 0 & 3.628 & 0.000 & 0\\
+\texttt{race\_progress} & 74331 & 0 & 0.264 & 0.429 & 0\\
+\texttt{stint} & 74331 & 2 & 0.960 & 2.000 & 0\\
+\texttt{tyre\_life} & 74331 & 14 & 10.294 & 12.000 & 0\\
+\texttt{year} & 74331 & 2023 & 0.812 & 2023.000 & 0\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The summary statistics show that the main numeric variables had no missing values in the cleaned training data. The average lap time was about 93 seconds, but the standard deviation was large because the dataset includes extreme lap-time values. Tire life had a mean of 14 laps and a median of 12 laps, which shows that most tire stints were not extremely long.
+
+\section{Missing Data, Duplicates, and Class Balance}
+
+The cleaned dataset did not show missing values in the main modeling variables, and no duplicate rows were found during cleaning. This made the later modeling process cleaner because each method could use the same basic dataset without needing a different missing-data rule every time.
+
+The classification target is imbalanced. Most laps are not followed by a pit stop. This matters because accuracy alone can look good even when a model misses many actual pit-next-lap cases. Because of this, the classification chapters report AUC, sensitivity, specificity, and precision instead of only reporting accuracy.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.75\textwidth]{fig01_lap_time_distribution.png}
+\caption{Lap time distribution in the cleaned dataset.}
+\label{fig:lap_time_distribution}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.75\textwidth]{fig02_pit_next_lap_balance.png}
+\caption{Class balance for the pit-next-lap response.}
+\label{fig:pit_next_lap_balance}
+\end{figure}
+
+\section{Tire Life, Compound, and Race Progress}
+
+Lap time differs by compound, but compound should not be read as a clean causal effect because tire choice is tied to strategy and race conditions. Tire life has a long right tail because most stints are short or moderate, with fewer very long stints. Race progress runs from 0 to 1, but the distribution is not perfectly flat because races have different lengths.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.75\textwidth]{fig03_lap_time_by_compound.png}
+\caption{Lap time by tire compound.}
+\label{fig:lap_time_by_compound}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.75\textwidth]{fig04_tyre_life_distribution.png}
+\caption{Distribution of tire life.}
+\label{fig:tyre_life_distribution}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.75\textwidth]{fig09_race_progress_distribution.png}
+\caption{Distribution of race progress.}
+\label{fig:race_progress_distribution}
+\end{figure}
+
+\section{Correlation and Pit-Rate Patterns}
+
+The correlation heatmap shows that some timing variables overlap, especially \texttt{lap\_number} and \texttt{race\_progress}. This matters later because multicollinearity can make regression coefficients harder to interpret. It also explains why regularization and PCA are useful later in the project.
+
+The clearest EDA pattern is that pit-next-lap rate increases with tire life. Pit rate also changes over race progress, which makes sense because pit strategy usually matters most in the middle part of a race rather than equally on every lap.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.82\textwidth]{fig05_numeric_correlation_heatmap.png}
+\caption{Correlation heatmap for numeric predictors.}
+\label{fig:numeric_correlation_heatmap}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.75\textwidth]{fig12_pit_rate_by_tyre_life.png}
+\caption{Observed pit-next-lap rate by tire life.}
+\label{fig:pit_rate_by_tyre_life}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.75\textwidth]{fig13_pit_rate_by_race_progress.png}
+\caption{Observed pit-next-lap rate by race progress.}
+\label{fig:pit_rate_by_race_progress}
+\end{figure}
+
+\section{Reusable Preprocessing and Train-Test Split}
+
+The same cleaned dataset is used throughout the project. The preprocessing steps include cleaning variable names, converting categorical variables to factors, converting the pit-stop indicators to Yes/No labels, creating a race-year identifier, and keeping a consistent set of modeling variables.
+
+The training data contains the 2022, 2023, and 2024 seasons. The 2025 season is held out as the final test set. This year-based split is more realistic than a random row split because laps from the same race are connected. A random split could leak very similar race context into both training and testing.
+
+\section{EDA Takeaways}
+
+The EDA gives four main takeaways. First, lap time has extreme values, so modeling needs to be careful. Second, the classification target is imbalanced, so accuracy alone is not enough. Third, tire life and race progress are clearly connected to pit behavior. Fourth, some predictors are correlated, so later regression coefficients should not be overinterpreted.
+
+% ============================================================
+% Chapter 3
+% ============================================================
+
+\chapter{Simple Linear Regression}
+\chapterquote{Simple linear regression gives an easy starting point, but one predictor is not enough to explain lap time well.}
+
+\section{The Question}
+
+How strongly can one lap-level predictor explain lap time by itself? I started with tire life because tire age should matter for lap performance, then used race progress as the selected simple baseline.
+
+\section{Method in Brief}
+
+Simple linear regression models a numeric response using one predictor:
+
+\[
+Y = \beta_0 + \beta_1X + \epsilon.
+\]
+
+Here, \(Y\) is lap time in seconds and \(X\) is race progress.
+
+\section{Why This Method?}
+
+Simple linear regression is useful because it is easy to explain and gives a baseline before adding more variables. If it performs poorly, that does not make it useless. It just means the relationship is probably more complicated than one straight line.
+
+\section{Data Setup}
+
+Only the training data was used. The 2025 test set was not touched. The model was:
+
+\[
+\texttt{lap\_time\_s} = \beta_0 + \beta_1(\texttt{race\_progress}) + \epsilon.
+\]
+
+\section{Analysis and Diagnostics}
+
+The fitted line showed a negative relationship. Later race progress was associated with lower lap time on average, possibly because fuel load gets lighter later in the race. The residual plot showed structure instead of a random cloud, so the straight-line model is missing important patterns.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+\centering
+\maybeincludegraphics[width=\linewidth]{ch03_fig01_slr_fitted_line.png}
+\caption{Fitted line.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering
+\maybeincludegraphics[width=\linewidth]{ch03_fig02_slr_residual_plot.png}
+\caption{Residuals.}
+\end{subfigure}
+\caption{Simple linear regression fit and residual check.}
+\end{figure}
+
+\section{Findings}
+
+The simple model is useful as a first baseline, but it is too simple to explain lap time well. Race context, tire compound, driver, race, position, and stint information should be added.
+
+\section{Real-World Decision}
+
+A strategist should not use simple linear regression alone for lap-time or pit-stop decisions. It is useful for a quick explanation, but not for serious prediction.
+
+\section{Caveats and Limitations}
+
+One predictor cannot capture Formula 1 strategy. The model ignores driver, race, compound, weather, safety cars, traffic, and team strategy.
+
+% ============================================================
+% Chapter 4
+% ============================================================
+
+\chapter{Multiple Linear Regression}
+\chapterquote{Multiple linear regression improves the baseline, but lap time is still mostly driven by factors not fully captured in the dataset.}
+
+\section{The Question}
+
+How well can lap time be explained using multiple lap-level predictors together?
+
+\section{Method in Brief}
+
+Multiple linear regression models a numeric response using several predictors:
+
+\[
+Y = \beta_0 + \beta_1X_1 + \cdots + \beta_pX_p + \epsilon.
+\]
+
+Here, the response is \(\texttt{lap\_time\_s}\). Predictors include tire life, race progress, position, stint, position change, compound, driver, race, and year.
+
+\section{Why This Method?}
+
+MLR is useful because it stays interpretable while controlling for several variables at once. That matters here because lap time is not caused by one thing.
+
+\section{Data Setup}
+
+Only the training data was used. Three models were compared: numeric MLR, numeric plus compound and year MLR, and Full Context MLR with numeric variables, compound, driver, race, and year.
+
+\section{Analysis}
+
+The Full Context MLR was the best of the three linear models. It had training RMSE \(=36.2542\), training MAE \(=6.2582\), and adjusted \(R^2=0.0848\). So the model improved over simpler versions, but still explained only about \(8.5\%\) of the variation in lap time.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+\centering
+\maybeincludegraphics[width=\linewidth]{ch04_fig05_model_comparison.png}
+\caption{Model comparison.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering
+\maybeincludegraphics[width=\linewidth]{ch04_fig08_compound_effects.png}
+\caption{Compound effects.}
+\end{subfigure}
+\caption{Multiple linear regression model comparison and compound dummy-variable effects.}
+\end{figure}
+
+\section{Dummy Variables, VIF, and Subset Selection}
+
+Categorical variables were handled with dummy variables. The reference compound was MEDIUM, so each compound coefficient compares that compound against MEDIUM, holding other predictors fixed.
+
+The VIF check showed overlap among timing variables. The largest adjusted VIF was for lap number at \(4.8237\). This does not make the model useless, but it means individual coefficients should not be overinterpreted.
+
+Subset selection was run on the numeric predictors. AIC selected 7 predictors, BIC selected 6 predictors, and Mallows' Cp selected 7 predictors. BIC was slightly more conservative.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+\centering
+\maybeincludegraphics[width=\linewidth]{ch04_fig07_vif_values.png}
+\caption{Adjusted VIF values.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering
+\maybeincludegraphics[width=\linewidth]{ch04_fig06_subset_selection_criteria.png}
+\caption{Subset criteria.}
+\end{subfigure}
+\caption{Multicollinearity and subset-selection checks for MLR.}
+\end{figure}
+
+\section{Diagnostics and Tuning}
+
+The residual plots showed non-random structure and strong tail behavior. This means the linear model is missing important nonlinear or race-specific patterns.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+\centering
+\maybeincludegraphics[width=\linewidth]{ch04_fig01_residuals_vs_fitted.png}
+\caption{Residuals vs fitted.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering
+\maybeincludegraphics[width=\linewidth]{ch04_fig04_qq_plot.png}
+\caption{QQ plot.}
+\end{subfigure}
+\caption{Diagnostics for the Full Context MLR model.}
+\end{figure}
+
+\section{Findings}
+
+MLR is better than SLR because it uses more race context. Still, the low adjusted \(R^2\) and residual patterns show that a straight-line model is too simple for lap-time behavior.
+
+\section{Real-World Decision}
+
+A strategist should treat MLR as an interpretable baseline, not as a final strategy model. More flexible methods are worth trying.
+
+\section{Caveats and Limitations}
+
+The model does not include Safety Car, Virtual Safety Car, yellow flags, red flags, track temperature, air temperature, pit stop time loss, circuit length, or team strategy. Some unusual laps may be reasonable once race context is known.
+
+% ============================================================
+% Chapter 5
+% ============================================================
+
+\chapter{Logistic Regression}
+\chapterquote{Logistic regression gives a strong first baseline for pit-stop prediction, but the default threshold misses many actual pit-next-lap cases.}
+
+\section{The Question}
+
+Which lap-level variables are most associated with the probability that a driver pits on the next lap?
+
+\section{Method in Brief}
+
+Logistic regression is used when the response is binary. It estimates the probability that \(\texttt{pit\_next\_lap}=\text{Yes}\) by modeling log-odds:
+
+\[
+\log\left(\frac{p}{1-p}\right)=\beta_0+\beta_1X_1+\cdots+\beta_pX_p.
+\]
+
+The coefficients can also be reported as odds ratios.
+
+\section{Why This Method?}
+
+Logistic regression is a good first classification model because it is simple, interpretable, and gives predicted probabilities. That is useful for strategy because a team may care more about risk than a hard yes-or-no prediction.
+
+\section{Data Setup}
+
+Only the training data was used. The predictors were \texttt{tyre\_life}, \texttt{race\_progress}, \texttt{stint}, \texttt{position}, \texttt{position\_change}, \texttt{compound}, and \texttt{year}. The current-lap variable \texttt{pit\_stop} was excluded to avoid leakage.
+
+\section{Analysis}
+
+The training data had 57,335 ``No'' cases and 16,996 ``Yes'' cases, so the target was imbalanced. The tire life odds ratio was about \(1.12\), meaning each one-lap increase in tire life was associated with higher estimated odds of pitting next lap. The stint odds ratio was about \(2.56\), suggesting later stints were also associated with higher pit odds. Race progress had an odds ratio around \(0.0278\), but this needs caution because race progress is scaled from 0 to 1.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+\centering
+\maybeincludegraphics[width=\linewidth]{ch05_fig03_numeric_odds_ratios.png}
+\caption{Numeric odds ratios.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering
+\maybeincludegraphics[width=\linewidth]{ch05_fig01_probability_by_tyre_life.png}
+\caption{Predicted probability by tire life.}
+\end{subfigure}
+\caption{Logistic regression odds ratios and tire-life probability pattern.}
+\end{figure}
+
+\section{Diagnostics and Tuning}
+
+Using a 0.50 threshold, the model had accuracy \(=81.1\%\), sensitivity \(=35.1\%\), specificity \(=94.7\%\), and precision \(=66.2\%\). The training AUC was \(0.8397\), which is strong for a first interpretable classifier. The main issue is the threshold: 0.50 gives high specificity but misses many actual pit-next-lap cases.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.44\textwidth}
+\centering
+\maybeincludegraphics[width=\linewidth]{ch05_fig04_confusion_matrix_050.png}
+\caption{Confusion matrix at 0.50.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.44\textwidth}
+\centering
+\maybeincludegraphics[width=\linewidth]{ch05_fig02_roc_curve.png}
+\caption{ROC curve.}
+\end{subfigure}
+\caption{Classification performance for logistic regression.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.70\textwidth]{ch05_fig05_threshold_comparison.png}
+\caption{Classification metrics across probability thresholds.}
+\end{figure}
+
+\section{Findings}
+
+Logistic regression worked better for pit-stop classification than linear regression worked for lap-time explanation. The AUC was solid, and the odds ratios were interpretable. The main problem is that the default threshold favors predicting ``No''.
+
+\section{Real-World Decision}
+
+A strategist could use logistic regression as a simple pit-stop warning model, but not with the 0.50 threshold automatically. If the goal is to catch likely pit stops earlier, a lower threshold should be considered.
+
+\section{Caveats and Limitations}
+
+The model does not know about safety cars, yellow flags, red flags, weather, tire temperature, traffic, team orders, or circuit-specific pit loss. A pit stop can look unexpected in the data but still be a good real race decision.
+
+% ============================================================
+% Chapter 6
+% ============================================================
+
+\chapter{Cross-Validation and Bootstrap}
+\chapterquote{Cross-validation gave a more honest check of model performance, and the bootstrap showed that the tire-life slope was stable in this sample.}
+
+\section{The Question}
+
+How reliable are the models under resampling, and how uncertain are the estimated effects?
+
+\section{Method in Brief}
+
+Cross-validation estimates how a model may perform on new data by repeatedly fitting it on part of the training data and checking it on held-out folds. In this chapter, I used 5-fold cross-validation.
+
+Bootstrap resampling estimates uncertainty by repeatedly sampling rows with replacement and recalculating a statistic. Here, I bootstrapped the slope of \texttt{tyre\_life} from the simple linear regression model:
+
+\[
+\texttt{lap\_time\_s} = \beta_0 + \beta_1(\texttt{tyre\_life}) + \epsilon.
+\]
+
+\section{Why This Method?}
+
+These methods are useful because training performance is usually too optimistic. Cross-validation gives a better estimate of held-out performance, while the bootstrap gives a practical way to check how stable an estimate is.
+
+For this dataset, I did not randomly assign individual laps to folds. Instead, I grouped folds by \texttt{race\_id}. This matters because laps from the same race are connected. If laps from the same race were split across both training and validation folds, the validation results could look better than they really are.
+
+\section{Data Setup}
+
+Only the training data was used. The 2025 test set was not touched. The resampling data had 74,331 training rows and 70 race-year IDs. These were split into 5 folds, with 14 race-year IDs in each fold.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Grouped 5-fold cross-validation fold summary.}
+\begin{tabular}{rrrrrr}
+\toprule
+Fold & Rows & Race-Year IDs & Yes & No & Yes Rate\\
+\midrule
+1 & 14295 & 14 & 3108 & 11187 & 0.2174\\
+2 & 14990 & 14 & 3324 & 11666 & 0.2217\\
+3 & 15624 & 14 & 4009 & 11615 & 0.2566\\
+4 & 14874 & 14 & 3870 & 11004 & 0.2602\\
+5 & 14548 & 14 & 2685 & 11863 & 0.1846\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The regression CV model predicted \texttt{lap\_time\_s}. The classification CV model predicted \texttt{pit\_next\_lap}. As before, \texttt{pit\_stop} was not used as a predictor because it could create leakage.
+
+\section{Analysis}
+
+For the regression example, the model was a multiple linear regression model using numeric lap predictors, tire compound, and year. The model was:
+
+\[
+\texttt{lap\_time\_s} \sim
+\texttt{lap\_number}
++ \texttt{tyre\_life}
++ \texttt{normalized\_tyre\_life}
++ \texttt{race\_progress}
++ \texttt{stint}
++ \texttt{position}
++ \texttt{position\_change}
++ \texttt{compound}
++ \texttt{year}.
+\]
+
+The regression results were uneven across folds. The mean CV RMSE was 26.5081 seconds, but the median RMSE was only 14.1542 seconds. The mean was much higher because fold 2 had RMSE \(=79.3051\). This shows that RMSE is sensitive to a few very large errors or unusual race contexts.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Regression cross-validation summary.}
+\begin{tabular}{lrrrrr}
+\toprule
+Metric & Mean & SD & Median & Min & Max\\
+\midrule
+RMSE & 26.5081 & 29.5189 & 14.1542 & 11.4733 & 79.3051\\
+MAE & 10.7810 & 1.7450 & 11.3091 & 8.6348 & 12.9614\\
+Validation \(R^2\) & 0.0606 & 0.0532 & 0.0630 & 0.0098 & 0.1356\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The mean CV MAE was 10.781 seconds, which gives a more typical sense of prediction error for this model. The mean validation \(R^2\) was only 0.0606, so the regression model still explained only a small amount of held-out lap-time variation.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.88\textwidth]{ch06_fig01_regression_cv_by_fold.png}
+\caption{Regression cross-validation results by fold. Fold 2 had a much larger RMSE than the other folds.}
+\end{figure}
+
+For the classification example, I used logistic regression to predict \texttt{pit\_next\_lap}. The model followed the same setup as Chapter 5:
+
+\[
+\texttt{pit\_next\_lap} \sim
+\texttt{tyre\_life}
++ \texttt{race\_progress}
++ \texttt{stint}
++ \texttt{position}
++ \texttt{position\_change}
++ \texttt{compound}
++ \texttt{year}.
+\]
+
+The model used a 0.50 probability threshold. This made the model conservative, similar to the result from Chapter 5.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Classification cross-validation summary.}
+\begin{tabular}{lrrrrr}
+\toprule
+Metric & Mean & SD & Median & Min & Max\\
+\midrule
+Accuracy & 0.8063 & 0.0345 & 0.8104 & 0.7577 & 0.8482\\
+Sensitivity & 0.3420 & 0.1132 & 0.3540 & 0.2204 & 0.5108\\
+Specificity & 0.9439 & 0.0228 & 0.9415 & 0.9156 & 0.9740\\
+Precision & 0.6481 & 0.0543 & 0.6589 & 0.5634 & 0.7039\\
+AUC & 0.8290 & 0.0286 & 0.8338 & 0.7814 & 0.8529\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The mean CV accuracy was 0.8063, and the mean CV AUC was 0.8290. These are solid for a simple interpretable classifier. However, the mean sensitivity was only 0.3420, while the mean specificity was 0.9439. In plain language, the model was much better at recognizing when a driver would not pit next lap than it was at catching actual pit-next-lap cases.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.88\textwidth]{ch06_fig02_classification_cv_by_fold.png}
+\caption{Classification cross-validation results by fold. Specificity and AUC were strong, but sensitivity was much lower at the 0.50 threshold.}
+\end{figure}
+
+\section{Diagnostics and Tuning}
+
+For classification, the main tuning issue is still the probability threshold. The 0.50 threshold gives high specificity but low sensitivity. If this model were used as a race-strategy warning tool, a lower threshold may be more useful because missing a likely pit stop could be worse than giving an extra warning.
+
+For regression, the biggest issue is the unstable RMSE. Fold 2 had a much larger RMSE than the other folds. That suggests there may be unusual slow laps or race-specific contexts that the linear model does not capture well.
+
+The bootstrap part used 1000 resamples. Each resample refit the SLR model \(\texttt{lap\_time\_s} \sim \texttt{tyre\_life}\), and the slope for \texttt{tyre\_life} was saved.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Bootstrap confidence interval for the tire-life slope.}
+\begin{tabular}{lr}
+\toprule
+Quantity & Value\\
+\midrule
+Original slope & -0.3920\\
+Bootstrap mean & -0.3910\\
+Bootstrap SE & 0.0173\\
+95\% CI lower bound & -0.4266\\
+95\% CI upper bound & -0.3613\\
+Bootstrap samples & 1000\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The full 95\% bootstrap confidence interval was negative, from -0.4266 to -0.3613. This means the negative tire-life slope was stable in this sample.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.82\textwidth]{ch06_fig03_bootstrap_tyre_life_slope.png}
+\caption{Bootstrap distribution of the tire-life slope. The dashed line shows the original slope, and the dotted lines show the 95\% bootstrap confidence interval.}
+\end{figure}
+
+\section{Findings}
+
+The regression CV results show that the MLR model still misses a lot of lap-time variation. The mean validation \(R^2\) was only 0.0606, and one fold had a much larger RMSE than the others. This supports the earlier idea that linear regression is useful as a baseline but not enough as a full lap-time model.
+
+The logistic regression model performed better as a classification baseline. Its AUC was strong, but sensitivity was low at the 0.50 threshold. The model ranked pit-next-lap cases fairly well, but the threshold made it miss many actual pit-next-lap cases.
+
+The bootstrap showed that the \texttt{tyre\_life} slope from the SLR model was stable in the sample because the whole confidence interval stayed negative.
+
+\section{Real-World Decision}
+
+Cross-validation gives a more honest estimate of model performance than training error alone. For this project, the results suggest that the current models are useful baselines, but they are not final strategy models.
+
+For lap-time prediction, more flexible methods are worth trying because the regression model does not capture enough race-specific structure. For pit-stop prediction, logistic regression is promising, but the decision threshold should be adjusted depending on the cost of false alarms versus missed pit stops.
+
+\section{Caveats and Limitations}
+
+The negative bootstrap slope for \texttt{tyre\_life} should not be interpreted as causal. It does not mean older tires directly cause faster laps. Tire life is mixed with race progress, fuel load, stint timing, and race context.
+
+The dataset also does not include key race-status and circuit-condition variables, such as Safety Car, Virtual Safety Car, yellow flags, red flags, track temperature, air temperature, circuit length, or pit stop time loss. Because of that, some unusual laps or pit decisions may look strange in the model even though they made sense in the actual race.
+
+% ============================================================
+% Chapter 7
+% ============================================================
+
+\chapter{Ridge and Lasso Regression}
+\chapterquote{Ridge and lasso improved lap-time prediction compared with the mean baseline, with lasso giving the slightly better test RMSE.}
+
+\section{The Question}
+
+Do ridge and lasso improve lap-time prediction when many predictors are included?
+
+\section{Method in Brief}
+
+Ridge and lasso are regularized regression methods. They start with linear regression, but add a penalty to control the size of the coefficients.
+
+Ridge regression shrinks coefficients toward zero, but usually keeps all predictors in the model:
+
+\[
+\sum_{i=1}^{n}(y_i-\hat{y}_i)^2 + \lambda \sum_{j=1}^{p}\beta_j^2.
+\]
+
+Lasso regression also shrinks coefficients, but it can shrink some coefficients exactly to zero:
+
+\[
+\sum_{i=1}^{n}(y_i-\hat{y}_i)^2 + \lambda \sum_{j=1}^{p}|\beta_j|.
+\]
+
+The tuning parameter \(\lambda\) controls how much shrinkage is applied. Larger \(\lambda\) values create more shrinkage.
+
+\section{Why This Method?}
+
+These methods are useful when there are many predictors or correlated predictors. This project has numeric lap predictors plus many dummy variables for compound, driver, race, and year. Ordinary least squares can become unstable in that type of setup.
+
+Ridge is useful when the goal is stable prediction with many related predictors. Lasso is useful when the goal is a smaller model because it can remove predictors by shrinking coefficients to zero.
+
+\section{Data Setup}
+
+Only the training data was used to choose \(\lambda\). The 2025 test set was used after model fitting to compare test RMSE.
+
+The model matrix included numeric lap predictors and dummy variables for compound, driver, race, and year. The original matrix had 72 predictors. Four zero-variance training columns were removed, leaving 68 predictors.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Model matrix summary for ridge and lasso regression.}
+\begin{tabular}{lr}
+\toprule
+Item & Value\\
+\midrule
+Training rows & 74331\\
+Testing rows & 27040\\
+Predictors before zero-variance removal & 72\\
+Predictors removed & 4\\
+Predictors used & 68\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The variables \texttt{lap\_time\_delta}, \texttt{cumulative\_degradation}, \texttt{pit\_stop}, and \texttt{pit\_next\_lap} were not used. These were excluded to avoid leakage or target-related information.
+
+\section{Analysis}
+
+Both ridge and lasso used 5-fold cross-validation on the training data to choose \(\lambda\). For each method, I saved both \texttt{lambda.min} and \texttt{lambda.1se}.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Cross-validated lambda choices for ridge and lasso.}
+\begin{tabular}{llr}
+\toprule
+Model & Lambda Type & Lambda\\
+\midrule
+Ridge & \texttt{lambda.min} & 0.47131624\\
+Ridge & \texttt{lambda.1se} & 4713.16235978\\
+Lasso & \texttt{lambda.min} & 0.01223077\\
+Lasso & \texttt{lambda.1se} & 4.71316236\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The cross-validation curves show that the \texttt{lambda.min} values were much less aggressive than the \texttt{lambda.1se} values. This matters because the \texttt{lambda.1se} versions shrank the models too much for this dataset.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.90\textwidth]{ch07_fig01_lambda_cv_plot.png}
+\caption{Cross-validation curves for ridge and lasso. The dashed line is \texttt{lambda.min}, and the solid line is \texttt{lambda.1se}.}
+\end{figure}
+
+After choosing \(\lambda\) using the training data, the models were evaluated on the 2025 test set.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Test performance for regularized regression models.}
+\begin{tabular}{llrrr}
+\toprule
+Model & Lambda Type & Test RMSE & Test MAE & Test \(R^2\)\\
+\midrule
+Lasso & \texttt{lambda.min} & 10.4757 & 7.3175 & 0.4075\\
+Ridge & \texttt{lambda.min} & 10.5020 & 7.3859 & 0.4046\\
+Ridge & \texttt{lambda.1se} & 13.7817 & 10.8053 & -0.0254\\
+Lasso & \texttt{lambda.1se} & 13.7817 & 10.8053 & -0.0254\\
+Mean Baseline & none & 13.7817 & 10.8053 & -0.0254\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The best regularized model was lasso using \texttt{lambda.min}. It had test RMSE \(=10.4757\), test MAE \(=7.3175\), and test \(R^2=0.4075\). Ridge using \texttt{lambda.min} was very close, with test RMSE \(=10.5020\).
+
+The \texttt{lambda.1se} versions performed the same as the mean baseline. This means those models were too heavily regularized for prediction here.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.82\textwidth]{ch07_fig02_test_rmse_comparison.png}
+\caption{Test RMSE comparison for ridge and lasso. The \texttt{lambda.min} versions performed better than the \texttt{lambda.1se} versions.}
+\end{figure}
+
+\section{Diagnostics and Tuning}
+
+The main tuning decision was the choice between \texttt{lambda.min} and \texttt{lambda.1se}. The \texttt{lambda.min} value gives the lowest cross-validated error. The \texttt{lambda.1se} value gives a simpler model within one standard error of the minimum.
+
+For this dataset, \texttt{lambda.1se} was too aggressive. Lasso using \texttt{lambda.1se} kept 0 nonzero predictors, so it was not useful for the variable-selection discussion. Lasso using \texttt{lambda.min} kept 64 nonzero predictors.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Lasso variables kept by original variable group using \texttt{lambda.min}.}
+\begin{tabular}{lr}
+\toprule
+Original Variable Group & Kept Terms\\
+\midrule
+Race & 27\\
+Driver & 24\\
+Compound & 5\\
+Year & 2\\
+Lap number & 1\\
+Normalized tire life & 1\\
+Position & 1\\
+Race progress & 1\\
+Stint & 1\\
+Tire life & 1\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The strongest lasso coefficients were mostly race dummy variables. This makes sense because lap times can differ a lot by circuit. Some compound effects and race progress were also kept.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.88\textwidth]{ch07_fig03_lasso_kept_coefficients.png}
+\caption{Top lasso coefficients kept using \texttt{lambda.min}. Race-level effects were some of the largest kept terms.}
+\end{figure}
+
+\section{Findings}
+
+Ridge and lasso both improved over the mean baseline when using \texttt{lambda.min}. Lasso had the best test RMSE, but ridge was very close. This means both methods worked well as regularized linear models.
+
+Lasso also gave a variable-selection view. Using \texttt{lambda.min}, it kept 64 predictors. The kept terms were mostly race and driver dummy variables, along with compound, year, and key numeric lap variables. This suggests that lap-time prediction depends strongly on race context and driver context, not just tire life or race progress.
+
+The \texttt{lambda.1se} lasso model was too simple because it shrank every predictor to zero. That made it perform like the mean baseline.
+
+\section{Real-World Decision}
+
+For lap-time prediction, lasso using \texttt{lambda.min} was the best regularized model in this chapter. Ridge using \texttt{lambda.min} was almost the same, so either one could be justified.
+
+If the goal is slightly better prediction and some variable selection, lasso is more useful. If the goal is stable prediction while keeping all predictors, ridge is safer.
+
+\section{Caveats and Limitations}
+
+Ridge and lasso are still linear models. They help with many predictors and correlated predictors, but they do not automatically capture nonlinear effects or complex race interactions.
+
+The large race coefficients should also be interpreted carefully. They do not mean the race name itself causes lap time. They mostly reflect circuit differences, race context, and conditions that are not fully measured in the dataset.
+
+The dataset still lacks important race-status and circuit-condition variables, including Safety Car, Virtual Safety Car, yellow flags, red flags, track temperature, air temperature, circuit length, and pit stop time loss. Because of that, regularized regression improves the linear baseline, but it is not a full race-strategy model.
+
+
+% ============================================================
+% Chapter 8
+% ============================================================
+
+\chapter{Decision Trees}
+\chapterquote{The classification tree was useful for pit-stop prediction, but the regression tree did not beat the mean baseline for lap-time prediction.}
+
+\section{The Question}
+
+Can decision trees give an interpretable model for lap-time prediction and pit-next-lap classification?
+
+\section{Method in Brief}
+
+A decision tree splits the data into smaller groups using if-then rules. For a regression tree, the final prediction is usually the average response value in a terminal node. For a classification tree, the final prediction is usually the most common class or the estimated class probability in a terminal node.
+
+The advantage of a tree is that it is easy to explain. Instead of only giving coefficients, a tree shows the actual splitting rules used to make predictions.
+
+\section{Why This Method?}
+
+Decision trees are useful for this project because Formula 1 strategy is not always linear. For example, pit-stop behavior may change depending on tire life, stint number, race progress, and year. A tree can capture these types of threshold-based patterns.
+
+The tradeoff is that a single tree can be unstable. A small change in the data can sometimes change the splits. Because of this, trees are useful for interpretation, but they are not always the strongest prediction method by themselves.
+
+\section{Data Setup}
+
+The regression tree predicted \texttt{lap\_time\_s}. The classification tree predicted \texttt{pit\_next\_lap}. The models used lap-level predictors, tire compound, and year.
+
+The current-lap variable \texttt{pit\_stop} was not used in the classification tree because it could create leakage.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Decision tree data summary.}
+\begin{tabular}{lr}
+\toprule
+Item & Value\\
+\midrule
+Training rows & 74331\\
+Testing rows & 27040\\
+Training No pit next lap & 57335\\
+Training Yes pit next lap & 16996\\
+Testing No pit next lap & 18207\\
+Testing Yes pit next lap & 8833\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Analysis}
+
+Both trees were fit using \texttt{rpart}. Tree pruning was handled using the complexity parameter, CP. The script saved the full tree, the \texttt{cp.min} pruned tree, and the \texttt{cp.1se} pruned tree.
+
+\begin{table}[H]
+\centering
+\small
+\caption{CP tuning summary for decision trees.}
+\begin{tabular}{llr}
+\toprule
+Tree & CP Type & CP\\
+\midrule
+Regression & \texttt{cp.min} & 0.00050000\\
+Regression & \texttt{cp.1se} & 0.04302037\\
+Classification & \texttt{cp.min} & 0.00064721\\
+Classification & \texttt{cp.1se} & 0.00064721\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For the regression tree, the \texttt{cp.1se} version pruned all the way back to a stump. This means it had no useful splits and behaved like the mean baseline. For the classification tree, the \texttt{cp.min} and \texttt{cp.1se} versions were the same size, while the full tree had the best AUC.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Decision tree size summary.}
+\begin{tabular}{llrrrr}
+\toprule
+Tree & Version & Internal Nodes & Terminal Nodes & Total Nodes & Has Splits\\
+\midrule
+Regression & Full tree & 8 & 9 & 17 & Yes\\
+Regression & Pruned \texttt{cp.min} & 8 & 9 & 17 & Yes\\
+Regression & Pruned \texttt{cp.1se} & 0 & 1 & 1 & No\\
+Classification & Full tree & 13 & 14 & 27 & Yes\\
+Classification & Pruned \texttt{cp.min} & 9 & 10 & 19 & Yes\\
+Classification & Pruned \texttt{cp.1se} & 9 & 10 & 19 & Yes\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.90\textwidth]{ch08_fig03_cp_tuning_curves.png}
+\caption{CP tuning curves for the regression and classification trees. Lower cross-validated relative error is better.}
+\end{figure}
+
+\section{Regression Tree Results}
+
+The regression tree did not perform well on the 2025 test set. The split trees had worse RMSE than the mean baseline.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Regression tree test performance.}
+\begin{tabular}{lrrr}
+\toprule
+Tree Version & Test RMSE & Test MAE & Test \(R^2\)\\
+\midrule
+Pruned \texttt{cp.1se} & 13.7817 & 10.8053 & -0.0254\\
+Mean baseline & 13.7817 & 10.8053 & -0.0254\\
+Full tree & 17.3523 & 11.1760 & -0.6260\\
+Pruned \texttt{cp.min} & 17.3523 & 11.1760 & -0.6260\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The \texttt{cp.1se} regression tree matched the mean baseline because it pruned back to a stump. The split tree had test RMSE \(=17.3523\), which was worse than the baseline RMSE \(=13.7817\). So for lap-time prediction, the single regression tree was not useful.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.82\textwidth]{ch08_fig04_regression_tree_rmse.png}
+\caption{Regression tree test RMSE. The split trees did not beat the mean baseline on the 2025 test set.}
+\end{figure}
+
+The plotted regression tree is still useful for interpretation. Its root split was \texttt{race\_progress}. The most important variables were \texttt{race\_progress}, \texttt{tyre\_life}, \texttt{lap\_number}, \texttt{normalized\_tyre\_life}, and \texttt{compound}.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.95\textwidth]{ch08_fig01_regression_tree.png}
+\caption{Regression tree for lap time. The first split was based on race progress.}
+\end{figure}
+
+\section{Classification Tree Results}
+
+The classification tree was more useful than the regression tree. The best classification tree by AUC was the full tree.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Classification tree test performance.}
+\begin{tabular}{lrrrrr}
+\toprule
+Tree Version & Accuracy & Sensitivity & Specificity & Precision & AUC\\
+\midrule
+Full tree & 0.7607 & 0.6679 & 0.8056 & 0.6251 & 0.7818\\
+Pruned \texttt{cp.min} & 0.7611 & 0.6391 & 0.8203 & 0.6334 & 0.7539\\
+Pruned \texttt{cp.1se} & 0.7611 & 0.6391 & 0.8203 & 0.6334 & 0.7539\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The full classification tree had AUC \(=0.7818\). Its sensitivity was 0.6679 and specificity was 0.8056. Compared with the earlier logistic regression results, this tree caught more actual pit-next-lap cases at the 0.50 threshold, but its AUC was lower than logistic regression.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.88\textwidth]{ch08_fig05_classification_tree_metrics.png}
+\caption{Classification tree test performance. The full tree had the best AUC and higher sensitivity than the pruned versions.}
+\end{figure}
+
+The root split for the full classification tree was \texttt{tyre\_life}. The most important variables were \texttt{year}, \texttt{normalized\_tyre\_life}, \texttt{race\_progress}, \texttt{tyre\_life}, and \texttt{stint}.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.95\textwidth]{ch08_fig02_classification_tree.png}
+\caption{Classification tree for pit-next-lap prediction. The first split was based on tire life.}
+\end{figure}
+
+\section{Top Splits and Variable Importance}
+
+The regression tree first split on \texttt{race\_progress}. This means the tree first separated early-race and later-race lap behavior. After that, it used \texttt{tyre\_life}, \texttt{lap\_number}, \texttt{compound}, and \texttt{year}. Even though this is interpretable, it did not generalize well to the 2025 test set.
+
+The classification tree first split on \texttt{tyre\_life}. This makes sense because pit-stop decisions are heavily related to how old the current tires are. The tree also used \texttt{stint}, \texttt{year}, \texttt{normalized\_tyre\_life}, and \texttt{race\_progress}. These splits are reasonable for a pit-stop prediction problem.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Main split variables in the decision trees.}
+\begin{tabular}{llrr}
+\toprule
+Tree & Variable & Split Count & First Depth\\
+\midrule
+Regression & \texttt{race\_progress} & 1 & 0\\
+Regression & \texttt{tyre\_life} & 2 & 1\\
+Regression & \texttt{lap\_number} & 2 & 2\\
+Regression & \texttt{compound} & 2 & 3\\
+Regression & \texttt{year} & 1 & 4\\
+Classification & \texttt{tyre\_life} & 2 & 0\\
+Classification & \texttt{stint} & 2 & 1\\
+Classification & \texttt{year} & 3 & 2\\
+Classification & \texttt{normalized\_tyre\_life} & 2 & 2\\
+Classification & \texttt{race\_progress} & 4 & 3\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Findings}
+
+The regression tree was not a good lap-time prediction model. The split trees performed worse than the mean baseline, and the simpler \texttt{cp.1se} tree only matched the baseline because it had no splits.
+
+The classification tree was more useful. It gave readable if-then rules and had decent performance for predicting \texttt{pit\_next\_lap}. The full tree had the best AUC and caught a larger share of actual pit-next-lap cases than the more conservative models from earlier chapters.
+
+\section{Real-World Decision}
+
+For lap-time prediction, I would not use a single regression tree based on these results. It did not generalize well to the 2025 test data.
+
+For pit-stop prediction, the classification tree is useful as an interpretable model. It gives simple rules based on tire life, stint, race progress, and year. However, because single trees can be unstable, the next step is to try ensemble tree methods like random forests or boosting.
+
+\section{Caveats and Limitations}
+
+The regression tree result shows that interpretability does not always mean better prediction. The tree found splits in the training data, but those splits did not transfer well to the test year.
+
+The classification tree is easier to explain than logistic regression, but it is still a simplified model. It does not include race-status and circuit-condition variables such as Safety Car, Virtual Safety Car, yellow flags, red flags, track temperature, air temperature, circuit length, or pit stop time loss. These missing variables matter because pit decisions often depend on race events that are not included in the dataset.
+
+
+% ============================================================
+% Chapter 9
+% ============================================================
+
+\chapter{Tree Ensembles}
+\chapterquote{Tree ensembles improved pit-stop classification, but they still did not solve the lap-time regression problem.}
+
+\section{The Question}
+
+Do tree ensemble methods improve prediction compared with a single decision tree?
+
+\section{Method in Brief}
+
+Tree ensembles combine many trees instead of relying on one tree. The main idea is that one tree can be unstable, but many trees together can give more stable predictions.
+
+This chapter used three ensemble methods:
+
+\begin{itemize}
+    \item \textbf{Bagging:} fits many trees on bootstrap samples and averages their predictions.
+    \item \textbf{Random forest:} works like bagging, but each split only considers a random subset of predictors.
+    \item \textbf{Boosting:} builds trees sequentially, where each new tree tries to improve on the previous trees.
+\end{itemize}
+
+For regression, the response was \texttt{lap\_time\_s}. For classification, the response was \texttt{pit\_next\_lap}.
+
+\section{Why This Method?}
+
+The single decision tree from Chapter 8 was easy to explain, but it was limited. The regression tree did not beat the mean baseline, and the classification tree was useful but still only a single tree.
+
+Tree ensembles are a natural next step because they keep the flexibility of trees while reducing some of the instability. They can capture nonlinear patterns and interactions between predictors such as tire life, race progress, stint, position, compound, and year.
+
+\section{Data Setup}
+
+The models used lap-level predictors, tire compound, and year. The variable \texttt{pit\_stop} was not used in the classification models because it could create leakage.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Tree ensemble data summary.}
+\begin{tabular}{lr}
+\toprule
+Item & Value\\
+\midrule
+Training rows & 74331\\
+Testing rows & 27040\\
+Training No pit next lap & 57335\\
+Training Yes pit next lap & 16996\\
+Testing No pit next lap & 18207\\
+Testing Yes pit next lap & 8833\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Bagging used all predictors at each split. Random forest used a smaller random subset of predictors at each split. Boosting used 5-fold cross-validation to choose the number of trees.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Tree ensemble model settings.}
+\begin{tabular}{lr}
+\toprule
+Item & Value\\
+\midrule
+Regression predictors & 9\\
+Classification predictors & 8\\
+Bagging mtry regression & 9\\
+Bagging mtry classification & 8\\
+Random forest mtry regression & 3\\
+Random forest mtry classification & 2\\
+Random forest / bagging trees & 200\\
+Boosting max trees & 600\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Analysis}
+
+Bagging and random forest both provide out-of-bag error estimates. Out-of-bag error uses the observations not included in each bootstrap sample as a built-in validation set.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Out-of-bag error summary.}
+\begin{tabular}{llrrrr}
+\toprule
+Task & Model & OOB RMSE & OOB \(R^2\) & OOB Error Rate & OOB Accuracy\\
+\midrule
+Regression & Bagging & 36.9211 & 0.0516 & -- & --\\
+Regression & Random forest & 35.9810 & 0.0993 & -- & --\\
+Classification & Bagging & -- & -- & 0.0786 & 0.9214\\
+Classification & Random forest & -- & -- & 0.0876 & 0.9124\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For boosting, the cross-validation procedure selected 578 trees for regression and 600 trees for classification.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Boosting model summary.}
+\begin{tabular}{lrrrrr}
+\toprule
+Task & Best Trees & Max Trees & Depth & Shrinkage & CV Folds\\
+\midrule
+Regression & 578 & 600 & 3 & 0.05 & 5\\
+Classification & 600 & 600 & 3 & 0.05 & 5\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Regression Ensemble Results}
+
+For lap-time prediction, the ensemble methods did not beat the mean baseline on the 2025 test set. Boosting was the best ensemble model, but its test RMSE was still worse than the baseline.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Regression ensemble test performance.}
+\begin{tabular}{lrrr}
+\toprule
+Model & Test RMSE & Test MAE & Test \(R^2\)\\
+\midrule
+Mean baseline & 13.7817 & 10.8053 & -0.0254\\
+Boosting & 18.5304 & 11.2395 & -0.8538\\
+Random forest & 34.1639 & 11.7592 & -5.3025\\
+Bagging & 52.2524 & 13.0792 & -13.7219\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This is an important result because it shows that a more flexible method is not automatically better. The ensemble trees found patterns in the training data, but those patterns did not transfer well to the 2025 test year for lap-time prediction.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.82\textwidth]{ch09_fig03_regression_ensemble_rmse.png}
+\caption{Regression ensemble test RMSE. None of the ensemble methods beat the mean baseline.}
+\end{figure}
+
+\section{Classification Ensemble Results}
+
+For pit-next-lap classification, the ensemble methods worked much better. Boosting had the best AUC.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Classification ensemble test performance.}
+\begin{tabular}{lrrrrr}
+\toprule
+Model & Accuracy & Sensitivity & Specificity & Precision & AUC\\
+\midrule
+Boosting & 0.7909 & 0.6384 & 0.8649 & 0.6963 & 0.8608\\
+Random forest & 0.7868 & 0.6514 & 0.8529 & 0.6832 & 0.8496\\
+Bagging & 0.7785 & 0.6696 & 0.8310 & 0.6569 & 0.8433\\
+Majority baseline & 0.6733 & 0.0000 & 1.0000 & -- & 0.5000\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Boosting had the strongest overall classification result with AUC \(=0.8608\). Random forest and bagging were also strong. Bagging had the highest sensitivity at 0.6696, meaning it caught the largest share of actual pit-next-lap cases, but boosting had the best balance overall.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.88\textwidth]{ch09_fig04_classification_ensemble_metrics.png}
+\caption{Classification ensemble test performance. Boosting had the highest AUC, while bagging had the highest sensitivity.}
+\end{figure}
+
+\section{Variable Importance}
+
+Random forest variable importance showed that different predictors mattered for the regression and classification tasks.
+
+For regression, the most important random forest variables were \texttt{position\_change}, \texttt{position}, \texttt{normalized\_tyre\_life}, \texttt{compound}, and \texttt{race\_progress}.
+
+For classification, the most important random forest variables were \texttt{race\_progress}, \texttt{normalized\_tyre\_life}, \texttt{year}, \texttt{tyre\_life}, and \texttt{position\_change}.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.88\textwidth]{ch09_fig01_random_forest_importance.png}
+\caption{Random forest variable importance for regression and classification.}
+\end{figure}
+
+Boosting importance gave a slightly different view. For regression, \texttt{race\_progress} dominated the model. For classification, \texttt{year}, \texttt{tyre\_life}, \texttt{stint}, \texttt{race\_progress}, and \texttt{normalized\_tyre\_life} were the most important predictors.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.88\textwidth]{ch09_fig02_boosting_importance.png}
+\caption{Boosting variable importance for regression and classification.}
+\end{figure}
+
+\section{Findings}
+
+The regression ensembles did not improve lap-time prediction. Even boosting, the best ensemble for regression, had test RMSE \(=18.5304\), which was worse than the mean baseline RMSE \(=13.7817\). This suggests that the available predictors are not enough to explain 2025 lap times well using these tree ensemble models.
+
+The classification ensembles were much more successful. Boosting had the best AUC at 0.8608, and all three ensemble classifiers performed far better than the majority baseline. The results suggest that pit-next-lap classification is more learnable from the available lap-level predictors than exact lap-time prediction.
+
+\section{Real-World Decision}
+
+For lap-time prediction, I would not use these tree ensembles as final models. They did not generalize well to the 2025 test set.
+
+For pit-stop prediction, boosting is the best ensemble model from this chapter because it had the highest AUC and good overall accuracy. Bagging may still be useful if the main goal is catching more actual pit-next-lap cases, since it had the highest sensitivity.
+
+\section{Caveats and Limitations}
+
+The poor regression performance does not mean tree ensembles are bad methods. It means these models did not work well for this particular lap-time setup. Exact lap time is affected by many missing factors, including traffic, fuel load, Safety Car periods, track temperature, air temperature, circuit layout, driver management, and race-specific conditions.
+
+The classification task performed better, but it still has limitations. Pit-stop decisions can be affected by Safety Car, Virtual Safety Car, yellow flags, red flags, pit lane time loss, team strategy, and tire availability. These variables are not included in the dataset, so even the best ensemble model is still working with incomplete race context.
+
+% ============================================================
+% Chapter 10
+% ============================================================
+
+\chapter{Support Vector Machines}
+\chapterquote{The RBF SVM ranked pit-next-lap cases better, but the linear SVM gave the more usable 0.50-threshold classifier.}
+
+\section{The Question}
+
+Can support vector machines improve prediction for \texttt{pit\_next\_lap}?
+
+\section{Method in Brief}
+
+Support vector machines are classification models that try to separate classes using a decision boundary. A linear SVM uses a straight boundary in the predictor space. An RBF SVM uses a radial kernel, which allows a more flexible curved boundary.
+
+In this chapter, I fit two SVM models:
+
+\begin{itemize}
+    \item \textbf{Linear SVM:} a simpler SVM with a linear decision boundary.
+    \item \textbf{RBF SVM:} a nonlinear SVM that can create curved decision boundaries.
+\end{itemize}
+
+The linear SVM was tuned by choosing the cost parameter. The RBF SVM was tuned by choosing both cost and gamma.
+
+\section{Why This Method?}
+
+SVMs are useful when the boundary between two classes may not be simple. For pit-stop prediction, the relationship between tire life, race progress, stint, and pit timing may be nonlinear. This makes SVMs a reasonable method to try after logistic regression, trees, and ensembles.
+
+The downside is that SVMs can be computationally expensive on large datasets. Since I am running the project on a regular laptop, I used a smaller balanced training sample to keep the runtime manageable. The final models were still evaluated on the full 2025 test set.
+
+\section{Data Setup}
+
+The response variable was \texttt{pit\_next\_lap}. The predictors were tire-life variables, race progress, stint, position, position change, compound, and year. The variable \texttt{pit\_stop} was not used because it could create leakage.
+
+The full training set had 74,331 rows and the full test set had 27,040 rows. For SVM fitting, I used a balanced sample of 3,000 training rows, with 1,500 ``No'' cases and 1,500 ``Yes'' cases. For tuning, I used 1,400 rows, with 700 cases from each class.
+
+\begin{table}[H]
+\centering
+\small
+\caption{SVM data summary.}
+\begin{tabular}{lr}
+\toprule
+Item & Value\\
+\midrule
+Full training rows & 74331\\
+Full testing rows & 27040\\
+Predictors used & 12\\
+Zero-variance predictors removed & 0\\
+SVM training sample rows & 3000\\
+SVM tuning sample rows & 1400\\
+Training sample No & 1500\\
+Training sample Yes & 1500\\
+Tuning sample No & 700\\
+Tuning sample Yes & 700\\
+CV folds for tuning & 2\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This sampling choice was a practical compromise. It made the SVM chapter possible to run in a reasonable amount of time while still evaluating final performance on the full test year.
+
+\section{Analysis}
+
+The tuning grid was intentionally small to keep runtime manageable. The linear SVM was tuned over cost values. The RBF SVM was tuned over cost and gamma.
+
+\begin{table}[H]
+\centering
+\small
+\caption{SVM tuning summary.}
+\begin{tabular}{llrrrr}
+\toprule
+Model & Kernel & Best Cost & Best Gamma & CV Accuracy & CV Balanced Accuracy\\
+\midrule
+Linear SVM & Linear & 1 & -- & 0.7029 & 0.7029\\
+RBF SVM & Radial & 1 & 0.05 & 0.7550 & 0.7550\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The RBF SVM had better cross-validation performance during tuning. Its CV balanced accuracy was 0.7550, compared with 0.7029 for the linear SVM. This suggests that a nonlinear boundary helped on the balanced training sample.
+
+\section{Test Performance}
+
+After tuning, both SVM models were evaluated on the full 2025 test set.
+
+\begin{table}[H]
+\centering
+\small
+\caption{SVM test performance on the 2025 test set.}
+\begin{tabular}{llrrrrr}
+\toprule
+Model & Kernel & Accuracy & Sensitivity & Specificity & Precision & AUC\\
+\midrule
+RBF SVM & Radial & 0.3535 & 0.9973 & 0.0411 & 0.3354 & 0.7859\\
+Linear SVM & Linear & 0.6882 & 0.5971 & 0.7324 & 0.5198 & 0.7328\\
+Majority baseline & None & 0.6733 & 0.0000 & 1.0000 & -- & 0.5000\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The RBF SVM had the best AUC at 0.7859. This means it ranked pit-next-lap cases better than the linear SVM overall. However, at the default 0.50 probability threshold, it predicted too many observations as ``Yes.'' This gave it very high sensitivity, 0.9973, but extremely low specificity, 0.0411. In plain language, it caught almost every actual pit-next-lap case, but it also created many false alarms.
+
+The linear SVM had lower AUC at 0.7328, but it was more usable at the 0.50 threshold. Its accuracy was 0.6882, sensitivity was 0.5971, and specificity was 0.7324. It did not rank cases as well as the RBF SVM, but its classification behavior was much more balanced.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.88\textwidth]{ch10_fig01_svm_metrics.png}
+\caption{SVM test performance. The RBF SVM had very high sensitivity but very low specificity at the 0.50 threshold.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.82\textwidth]{ch10_fig02_svm_roc_curves.png}
+\caption{SVM ROC curves. The RBF SVM ranked pit-next-lap cases better overall, but its 0.50-threshold classification was not balanced.}
+\end{figure}
+
+\section{Diagnostics and Tuning}
+
+The main tuning result was that the RBF SVM performed better during cross-validation. The best RBF settings were cost \(=1\) and gamma \(=0.05\). The best linear SVM used cost \(=1\).
+
+The main diagnostic issue was threshold behavior. The RBF SVM had a good AUC, but its 0.50 threshold led to almost every test observation being predicted as ``Yes.'' This is probably connected to the balanced training sample. The model was trained on a 50/50 sample, but the test set was not exactly balanced in the same way. Because of that, the probability threshold did not transfer cleanly.
+
+A better future version could tune the classification threshold separately. For this chapter, I kept the 0.50 threshold so the SVM results stay comparable with the earlier classification chapters.
+
+\section{Findings}
+
+The RBF SVM was better at ranking observations by pit-next-lap risk. Its AUC was 0.7859, which was higher than the linear SVM's AUC of 0.7328. This supports the idea that a nonlinear boundary may capture some extra structure.
+
+However, the RBF model was not a good direct classifier at the default threshold. It had sensitivity near 1, but specificity near 0. This means it was too aggressive about predicting pit stops.
+
+The linear SVM was less powerful by AUC, but more balanced at the 0.50 threshold. If I had to use one SVM directly without changing the threshold, I would trust the linear SVM more. If I were allowed to tune the threshold, the RBF SVM would be more interesting because its AUC was stronger.
+
+\section{Real-World Decision}
+
+For a real pit-stop warning tool, I would not use the RBF SVM with the default 0.50 threshold because it creates too many false alarms. It could still be useful as a ranking model if the threshold were tuned.
+
+Between the two SVMs, the linear SVM is the safer simple classifier, while the RBF SVM is the better ranking model. Compared with the previous chapter, boosting still looks stronger overall for pit-next-lap prediction.
+
+\section{Caveats and Limitations}
+
+The biggest limitation is that the SVMs were trained on a smaller balanced sample for computational reasons. This was necessary because SVMs are slower on large datasets, especially on a basic laptop. The final evaluation still used the full 2025 test set, but the training sample may not capture all of the structure in the full training data.
+
+The RBF SVM's poor specificity also shows that AUC and threshold-based performance can tell different stories. A model can rank cases well but still perform badly at a fixed threshold.
+
+Finally, the dataset still lacks important race-status variables, such as Safety Car, Virtual Safety Car, yellow flags, red flags, pit lane time loss, and track conditions. These missing variables are especially important for pit-stop decisions, so the SVM results should be treated as a method comparison rather than a final strategy model.
+
+% ============================================================
+% Chapter 11
+% ============================================================
+
+\chapter{K-Nearest Neighbors}
+\chapterquote{KNN caught many actual pit-next-lap cases, but it also created many false alarms.}
+
+\section{The Question}
+
+Can K-nearest neighbors predict whether a driver will pit on the next lap?
+
+\section{Method in Brief}
+
+K-nearest neighbors, or KNN, is a classification method based on distance. For a new observation, the model finds the \(k\) most similar training observations and predicts the majority class among those neighbors.
+
+The main tuning parameter is \(k\), the number of neighbors. A small \(k\) can make the model very flexible, while a larger \(k\) makes the model smoother.
+
+Because KNN uses distance, scaling matters. If the predictors are not standardized, variables with larger numeric scales can dominate the distance calculation.
+
+\section{Why This Method?}
+
+KNN is useful as a simple comparison model because it does not assume a linear relationship. This matters because pit-stop timing may depend on nonlinear combinations of tire life, race progress, stint number, position, and compound.
+
+The downside is that KNN can be slow on large datasets. Prediction requires comparing each new observation to the training observations. Because of this, I used a balanced training sample to keep the script realistic for my laptop.
+
+\section{Data Setup}
+
+The response variable was \texttt{pit\_next\_lap}. The predictors were tire-life variables, race progress, stint, position, position change, compound, and year. The variable \texttt{pit\_stop} was not used because it could create leakage.
+
+The full training set had 74,331 rows and the full test set had 27,040 rows. For KNN fitting, I used a balanced training sample of 5,000 rows, with 2,500 ``No'' cases and 2,500 ``Yes'' cases. For tuning, I used 2,000 rows and 3-fold cross-validation.
+
+\begin{table}[H]
+\centering
+\small
+\caption{KNN data summary.}
+\begin{tabular}{lr}
+\toprule
+Item & Value\\
+\midrule
+Full training rows & 74331\\
+Full testing rows & 27040\\
+Predictors used & 12\\
+Zero-variance predictors removed & 0\\
+KNN training sample rows & 5000\\
+KNN tuning sample rows & 2000\\
+Training sample No & 2500\\
+Training sample Yes & 2500\\
+Tuning sample No & 1000\\
+Tuning sample Yes & 1000\\
+CV folds for tuning & 3\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This sampling choice was a practical compromise. It made KNN possible to run in a reasonable amount of time while still evaluating the final model on the full 2025 test set.
+
+\section{Analysis}
+
+The value of \(k\) was tuned using cross-validation. I tested several possible values:
+
+\[
+k = 3, 5, 7, 11, 15, 21, 31, 41, 51.
+\]
+
+The final \(k\) was selected using balanced accuracy because the goal was not only overall accuracy, but also a reasonable balance between catching pit-next-lap cases and avoiding false alarms.
+
+\begin{table}[H]
+\centering
+\small
+\caption{KNN cross-validation results.}
+\begin{tabular}{rrrrrr}
+\toprule
+\(k\) & CV Accuracy & CV Error & Sensitivity & Specificity & Balanced Accuracy\\
+\midrule
+3 & 0.7780 & 0.2220 & 0.8240 & 0.7320 & 0.7780\\
+7 & 0.7680 & 0.2320 & 0.8230 & 0.7130 & 0.7680\\
+5 & 0.7670 & 0.2330 & 0.8140 & 0.7200 & 0.7670\\
+11 & 0.7640 & 0.2360 & 0.8090 & 0.7190 & 0.7640\\
+15 & 0.7530 & 0.2470 & 0.7920 & 0.7140 & 0.7530\\
+21 & 0.7460 & 0.2540 & 0.7800 & 0.7130 & 0.7460\\
+41 & 0.7400 & 0.2600 & 0.7550 & 0.7260 & 0.7400\\
+31 & 0.7370 & 0.2630 & 0.7550 & 0.7190 & 0.7370\\
+51 & 0.7260 & 0.2740 & 0.7270 & 0.7240 & 0.7260\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The best value was \(k=3\). This had the lowest CV error and the best balanced accuracy among the tested values.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.85\textwidth]{ch11_fig01_knn_cv_error_curve.png}
+\caption{KNN cross-validation error curve. The selected value was \(k=3\).}
+\end{figure}
+
+\section{Test Performance}
+
+After tuning, the final KNN model was fit using the balanced training sample and evaluated on the full 2025 test set.
+
+\begin{table}[H]
+\centering
+\small
+\caption{KNN test performance on the 2025 test set.}
+\begin{tabular}{lrrrrr}
+\toprule
+Model & Accuracy & Sensitivity & Specificity & Precision & AUC\\
+\midrule
+KNN, \(k=3\) & 0.6198 & 0.7981 & 0.5333 & 0.4534 & 0.7100\\
+Majority baseline & 0.6733 & 0.0000 & 1.0000 & -- & 0.5000\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The KNN model had AUC \(=0.7100\), which was better than the majority baseline. Its sensitivity was high at 0.7981, meaning it caught many actual pit-next-lap cases. However, specificity was only 0.5333 and precision was 0.4534. This means the model also produced many false positives.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.82\textwidth]{ch11_fig02_knn_test_metrics.png}
+\caption{KNN test performance. The model had high sensitivity but weaker specificity and precision.}
+\end{figure}
+
+\section{Diagnostics and Tuning}
+
+The cross-validation curve showed that smaller \(k\) values worked better for this setup. The selected value, \(k=3\), gave the lowest CV error. As \(k\) increased, CV error generally increased. This suggests that a more local decision rule worked better on the balanced tuning sample.
+
+The main diagnostic issue is that the final KNN model leaned toward predicting ``Yes'' more often than ideal. This helped sensitivity, but hurt specificity and precision. In a real strategy setting, this would mean the model gives many pit-stop warnings, but not all of them would be useful.
+
+\section{Findings}
+
+KNN was able to identify many actual pit-next-lap cases, but it was not the strongest classifier overall. Its AUC was 0.7100, which is better than random guessing, but lower than the best models from earlier chapters.
+
+The high sensitivity is useful if the goal is to avoid missing possible pit stops. However, the low precision means many warnings would be false alarms. Compared with boosting and logistic regression, KNN is not the best final model for this project.
+
+\section{Real-World Decision}
+
+I would not choose KNN as the final pit-stop prediction model. It is simple and flexible, but it is computationally heavier than it looks because every prediction requires distance comparisons.
+
+For this project, KNN is useful as a comparison method. It shows that a distance-based classifier can catch many pit-next-lap cases, but the false-positive rate is too high for it to be the main model.
+
+\section{Caveats and Limitations}
+
+The KNN model was trained on a balanced sample instead of the full training set. This was done for practical runtime reasons. The final evaluation still used the full 2025 test set, but the smaller training sample may not capture all race contexts.
+
+KNN also depends heavily on the chosen predictors and the scaling method. Since the dataset is missing race-status and circuit-condition variables such as Safety Car, Virtual Safety Car, yellow flags, red flags, pit lane time loss, and track conditions, the distance between observations is still based on incomplete race context.
+
+Overall, KNN was a useful comparison model, but it was not stronger than the best previous classification methods.
+
+% ============================================================
+% Chapter 12
+% ============================================================
+
+\chapter{Principal Components Analysis}
+\chapterquote{PCA showed that the numeric lap predictors can be summarized into a few main components, but the first two components did not cleanly separate pit-next-lap cases.}
+
+\section{The Question}
+
+Can principal components analysis summarize the numeric lap-level predictors into a smaller number of components?
+
+\section{Method in Brief}
+
+Principal components analysis, or PCA, is an unsupervised method that transforms correlated numeric variables into new variables called principal components. These components are linear combinations of the original variables.
+
+The first principal component explains the largest amount of variance. The second principal component explains the next largest amount of variance, while being uncorrelated with the first component. This continues for the remaining components.
+
+PCA does not use the response variable. In this chapter, PCA was used to understand the structure of the numeric predictors, not to directly predict \texttt{lap\_time\_s} or \texttt{pit\_next\_lap}.
+
+\section{Why This Method?}
+
+This project has several numeric predictors that are related to each other. For example, \texttt{lap\_number}, \texttt{race\_progress}, \texttt{tyre\_life}, and \texttt{normalized\_tyre\_life} are all connected to where a driver is in the race and how old the current tires are.
+
+PCA is useful because it can summarize these related variables into a smaller number of components. This helps show whether the numeric predictors contain repeated information.
+
+\section{Data Setup}
+
+PCA was run only on the training data. The response variables were not included. Only numeric predictors were used.
+
+All variables were standardized before PCA. This matters because PCA depends on variance, and variables with larger scales could dominate the components if the data were not standardized.
+
+\begin{table}[H]
+\centering
+\small
+\caption{PCA data summary.}
+\begin{tabular}{lr}
+\toprule
+Item & Value\\
+\midrule
+Training rows available & 74331\\
+Rows used for PCA & 74331\\
+Numeric predictors used & 8\\
+Response variables included in PCA & 0\\
+Standardization used & 1\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The numeric predictors used were:
+
+\begin{itemize}
+    \item \texttt{lap\_number}
+    \item \texttt{tyre\_life}
+    \item \texttt{normalized\_tyre\_life}
+    \item \texttt{race\_progress}
+    \item \texttt{stint}
+    \item \texttt{position}
+    \item \texttt{position\_change}
+    \item \texttt{year}
+\end{itemize}
+
+\section{Analysis}
+
+The first component explained the largest share of the variance. PC1 explained 39.2\% of the total variance. PC2 explained 18.8\%, and PC3 explained 14.6\%.
+
+\begin{table}[H]
+\centering
+\small
+\caption{PCA variance explained.}
+\begin{tabular}{lrrrr}
+\toprule
+Component & Standard Deviation & Eigenvalue & Proportion & Cumulative\\
+\midrule
+PC1 & 1.7704 & 3.1343 & 0.3918 & 0.3918\\
+PC2 & 1.2277 & 1.5073 & 0.1884 & 0.5802\\
+PC3 & 1.0810 & 1.1686 & 0.1461 & 0.7263\\
+PC4 & 1.0038 & 1.0075 & 0.1259 & 0.8522\\
+PC5 & 0.8108 & 0.6574 & 0.0822 & 0.9344\\
+PC6 & 0.5618 & 0.3156 & 0.0395 & 0.9738\\
+PC7 & 0.4215 & 0.1777 & 0.0222 & 0.9961\\
+PC8 & 0.1717 & 0.0295 & 0.0037 & 1.0000\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The first two PCs explained 58.1\% of the total variance. The first three PCs explained 72.7\%. This means that a few components captured a large amount of the information from the eight numeric predictors.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.85\textwidth]{ch12_fig01_pca_scree_plot.png}
+\caption{PCA scree plot. PC1 explained the largest share of variance, and the first three PCs explained about 72.7\% of the total variance.}
+\end{figure}
+
+\section{Loadings}
+
+The PCA loadings show which original variables contribute most to each component.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Top PCA loadings for the first three principal components.}
+\begin{tabular}{llrr}
+\toprule
+Variable & Component & Loading & Absolute Loading\\
+\midrule
+\texttt{race\_progress} & PC1 & 0.5317 & 0.5317\\
+\texttt{lap\_number} & PC1 & 0.5281 & 0.5281\\
+\texttt{normalized\_tyre\_life} & PC1 & 0.3998 & 0.3998\\
+\texttt{tyre\_life} & PC1 & 0.3926 & 0.3926\\
+\texttt{stint} & PC1 & 0.3446 & 0.3446\\
+\midrule
+\texttt{position} & PC2 & 0.5418 & 0.5418\\
+\texttt{stint} & PC2 & 0.4653 & 0.4653\\
+\texttt{position\_change} & PC2 & -0.4335 & 0.4335\\
+\texttt{tyre\_life} & PC2 & -0.3805 & 0.3805\\
+\texttt{normalized\_tyre\_life} & PC2 & -0.3236 & 0.3236\\
+\midrule
+\texttt{position\_change} & PC3 & 0.5896 & 0.5896\\
+\texttt{position} & PC3 & -0.4168 & 0.4168\\
+\texttt{tyre\_life} & PC3 & -0.3942 & 0.3942\\
+\texttt{stint} & PC3 & 0.3911 & 0.3911\\
+\texttt{normalized\_tyre\_life} & PC3 & -0.3356 & 0.3356\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+PC1 mainly represents race timing and tire age. Its strongest loadings were \texttt{race\_progress}, \texttt{lap\_number}, \texttt{normalized\_tyre\_life}, \texttt{tyre\_life}, and \texttt{stint}. This makes sense because these variables all increase as the race or tire stint moves forward.
+
+PC2 mainly contrasts track position and stint with tire age and position change. Its strongest loading was \texttt{position}, followed by \texttt{stint}, \texttt{position\_change}, \texttt{tyre\_life}, and \texttt{normalized\_tyre\_life}.
+
+PC3 was driven most strongly by \texttt{position\_change}, with important contributions from \texttt{position}, \texttt{tyre\_life}, \texttt{stint}, and \texttt{normalized\_tyre\_life}. This component seems more related to position movement and race-state differences.
+
+\section{PC1 vs PC2 Plot}
+
+The PC1 vs PC2 plot was colored by whether the driver pitted on the next lap. The two classes overlap heavily.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.88\textwidth]{ch12_fig02_pca_pc1_pc2.png}
+\caption{PC1 vs PC2 plot colored by pit-next-lap status. The two classes overlap heavily, so the first two PCs do not cleanly separate pit-next-lap cases.}
+\end{figure}
+
+This overlap is important. PCA found structure in the numeric predictors, but that structure does not separate the classification outcome very clearly in two dimensions. This supports what the supervised models already showed: pit-stop prediction needs more than a simple two-dimensional summary.
+
+\section{Findings}
+
+The first few principal components explained a large share of the numeric predictor variance. PC1 explained 39.2\%, PC2 explained 18.8\%, and PC3 explained 14.6\%. Together, the first three PCs explained 72.7\% of the total variance.
+
+PC1 was mostly a race-progress and tire-life component. PC2 and PC3 brought in more position, position-change, stint, and tire-life structure.
+
+The PC1 vs PC2 plot showed strong overlap between \texttt{pit\_next\_lap} and \texttt{no pit next lap}. This means PCA is useful for understanding predictor structure, but it is not enough by itself to separate pit-stop outcomes.
+
+\section{Real-World Decision}
+
+PCA is useful in this project as an exploratory tool. It helps summarize the numeric predictors and shows that much of their variation can be captured with only a few components.
+
+However, I would not use PCA alone as the final modeling approach. It does not directly optimize prediction, and the first two PCs do not clearly separate pit-next-lap cases. PCA could be useful as preprocessing for another model, but it is not the main decision model here.
+
+\section{Caveats and Limitations}
+
+PCA only used numeric predictors. It did not include categorical variables such as compound as separate dummy variables in this chapter. It also did not include the response variables.
+
+Another limitation is that PCA explains variance in the predictors, not necessarily predictive power for the response. A component can explain a lot of predictor variation without being the best component for predicting pit stops or lap times.
+
+The dataset also lacks important race-status and circuit-condition variables, such as Safety Car, Virtual Safety Car, yellow flags, red flags, track temperature, air temperature, circuit length, and pit lane time loss. PCA can summarize the available numeric predictors, but it cannot recover information that is missing from the dataset.
+
+% ============================================================
+% Chapter 13
+% ============================================================
+
+\chapter{Neural Network}
+\chapterquote{The neural network improved over logistic regression, but the random forest benchmark still had the strongest AUC in this chapter.}
+
+\section{The Question}
+
+Can a small neural network improve pit-next-lap prediction compared with simpler classification models?
+
+\section{Method in Brief}
+
+A neural network is a flexible supervised learning model that combines predictors through hidden units. These hidden units allow the model to learn nonlinear patterns.
+
+In this chapter, I used a small feed-forward neural network for the binary classification target \texttt{pit\_next\_lap}. The model had one hidden layer. The two tuning parameters were:
+
+\begin{itemize}
+    \item \textbf{Size:} the number of hidden units.
+    \item \textbf{Decay:} a regularization penalty that helps prevent overfitting.
+\end{itemize}
+
+The neural network was compared with logistic regression and random forest benchmarks trained on the same balanced sample.
+
+\section{Why This Method?}
+
+A neural network is worth testing because pit-stop timing may depend on nonlinear relationships between tire life, race progress, stint, position, compound, and year. Earlier methods showed that nonlinear models can help the classification task.
+
+The downside is that neural networks are less interpretable than logistic regression or a single decision tree. They also need more care with scaling and tuning. Because of that, this chapter uses a small neural network rather than a large deep-learning model.
+
+\section{Data Setup}
+
+The response variable was \texttt{pit\_next\_lap}. The predictors were tire-life variables, race progress, stint, position, position change, compound, and year. The variable \texttt{pit\_stop} was not used because it could create leakage.
+
+The predictors were scaled before fitting the neural network. Scaling matters because neural networks train better when variables are on similar scales.
+
+The full training set had 74,331 rows and the full test set had 27,040 rows. To keep runtime manageable on a basic laptop, the model was trained on a balanced sample of 4,000 rows.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Neural network data summary.}
+\begin{tabular}{lr}
+\toprule
+Item & Value\\
+\midrule
+Full training rows & 74331\\
+Full testing rows & 27040\\
+Predictors used & 12\\
+Zero-variance predictors removed & 0\\
+NN training sample rows & 4000\\
+NN tuning sample rows & 2000\\
+NN tuning train rows & 1400\\
+NN tuning validation rows & 600\\
+Training sample No & 2000\\
+Training sample Yes & 2000\\
+Tuning sample No & 1000\\
+Tuning sample Yes & 1000\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The final evaluation still used the full 2025 test set.
+
+\section{Analysis}
+
+The tuning grid tested hidden-layer sizes of 1, 3, and 5. It also tested decay values of 0.001 and 0.01.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Neural network tuning results.}
+\begin{tabular}{rrrrrr}
+\toprule
+Size & Decay & Accuracy & Sensitivity & Specificity & AUC\\
+\midrule
+5 & 0.001 & 0.8017 & 0.8500 & 0.7533 & 0.8910\\
+5 & 0.010 & 0.8033 & 0.8667 & 0.7400 & 0.8854\\
+3 & 0.010 & 0.7350 & 0.7733 & 0.6967 & 0.8083\\
+3 & 0.001 & 0.7400 & 0.7900 & 0.6900 & 0.7756\\
+1 & 0.001 & 0.7150 & 0.8300 & 0.6000 & 0.7391\\
+1 & 0.010 & 0.6950 & 0.8733 & 0.5167 & 0.7044\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The selected neural network used size \(=5\) and decay \(=0.001\). This setting had the best validation AUC among the tested options.
+
+\section{Test Performance}
+
+After tuning, the final neural network was fit on the balanced training sample and evaluated on the full 2025 test set. Logistic regression and random forest benchmarks were trained on the same balanced sample for comparison.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Neural network chapter test performance.}
+\begin{tabular}{lrrrrr}
+\toprule
+Model & Accuracy & Sensitivity & Specificity & Precision & AUC\\
+\midrule
+Random forest & 0.7070 & 0.8636 & 0.6310 & 0.5317 & 0.8271\\
+Neural network & 0.6876 & 0.8672 & 0.6005 & 0.5130 & 0.7948\\
+Logistic regression & 0.6684 & 0.6861 & 0.6598 & 0.4945 & 0.7243\\
+Majority baseline & 0.6733 & 0.0000 & 1.0000 & -- & 0.5000\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The neural network had AUC \(=0.7948\), which was better than logistic regression's AUC of 0.7243. It also had much higher sensitivity than logistic regression. This means it caught more actual pit-next-lap cases.
+
+However, the random forest benchmark performed best overall, with AUC \(=0.8271\). It also had better accuracy, specificity, and precision than the neural network.
+
+\begin{figure}[H]
+\centering
+\maybeincludegraphics[width=0.88\textwidth]{ch13_fig01_neural_network_metrics.png}
+\caption{Neural network chapter test performance. The neural network improved over logistic regression, but random forest had the strongest AUC.}
+\end{figure}
+
+\section{Diagnostics and Tuning}
+
+The tuning results showed that larger hidden layers worked better than a one-unit hidden layer. The best validation AUC came from size \(=5\) and decay \(=0.001\).
+
+The neural network had strong sensitivity on the test set, 0.8672. This means it caught many true pit-next-lap cases. The tradeoff was weaker specificity, 0.6005, and precision, 0.5130. In practical terms, the model was aggressive about predicting pit stops, so it produced a noticeable number of false positives.
+
+The random forest benchmark had a better balance. It had similar sensitivity, 0.8636, but better specificity and precision. That made it the stronger model in this chapter.
+
+\section{Findings}
+
+The neural network did improve over logistic regression. Its AUC was 0.7948, compared with 0.7243 for logistic regression. It also had higher sensitivity, meaning it caught more actual pit-next-lap cases.
+
+Still, the neural network did not beat the random forest benchmark. Random forest had the highest AUC at 0.8271 and the best accuracy at 0.7070. This suggests that, for this dataset and setup, the tree-based model handled the predictor structure better than the small neural network.
+
+\section{Real-World Decision}
+
+I would not choose the neural network as the final model. It is useful as a flexible nonlinear comparison model, but it was less interpretable than logistic regression and weaker than the random forest benchmark.
+
+If the goal is catching possible pit stops, the neural network is useful because of its high sensitivity. If the goal is the best overall balance, the random forest benchmark is the better choice in this chapter.
+
+\section{Caveats and Limitations}
+
+The neural network was trained on a smaller balanced sample for computational reasons. This made the script realistic to run on my laptop, but it also means the model did not use every training observation.
+
+The tuning grid was also intentionally small. A wider search over hidden units, decay values, thresholds, and training settings might improve performance, but that would take more time and computing power.
+
+Finally, the model is still limited by the dataset. It does not include important race-status and circuit-condition variables such as Safety Car, Virtual Safety Car, yellow flags, red flags, track temperature, air temperature, pit lane time loss, or tire availability. Because of that, the neural network should be treated as a method comparison, not as a complete pit-stop strategy system.
+
+
+% ============================================================
+% Chapter 14
+% ============================================================
+
+\chapter{Method Comparison and Final Recommendation}
+\chapterquote{The best model depends on the goal: lasso worked best for lap-time regression, boosting worked best for pit-stop classification, and simpler models were still useful when explanation mattered.}
+
+\section{The Question}
+
+After testing all of the methods, which models should be recommended for the two main project tasks?
+
+The two main tasks were:
+
+\begin{itemize}
+    \item \textbf{Regression task:} predict \texttt{lap\_time\_s}.
+    \item \textbf{Classification task:} predict \texttt{pit\_next\_lap}.
+\end{itemize}
+
+\section{Method Comparison Setup}
+
+The final comparison combined the saved performance results from the earlier chapters. Regression models were compared using test RMSE, where lower is better. Classification models were compared mainly using AUC, where higher is better.
+
+The comparison also included tuning method, interpretability, and practical notes. This matters because the best raw prediction model is not always the easiest model to explain.
+
+\section{Regression Method Comparison}
+
+For lap-time prediction, lasso was the best model. It had the lowest test RMSE among the regression models.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Regression method comparison. Lower test RMSE is better.}
+\begin{tabular}{llrll}
+\toprule
+Method & Task & Test RMSE & Tuning Method & Interpretability\\
+\midrule
+Lasso \(\lambda_{\min}\) & Regression & 10.4757 & 5-fold CV selected lambda & Medium\\
+Ridge \(\lambda_{\min}\) & Regression & 10.5020 & 5-fold CV selected lambda & Medium\\
+Mean baseline & Regression & 13.7817 & No tuning & High\\
+Regression tree, \texttt{cp.1se} & Regression & 13.7817 & CP pruning & High\\
+Regression tree, full tree & Regression & 17.3523 & CP pruning & High\\
+Boosting & Regression & 18.5304 & CV selected trees & Low\\
+Random forest & Regression & 34.1591 & OOB error & Low\\
+Bagging & Regression & 52.2528 & OOB error & Low\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The important result is that the more flexible tree models did not help the regression task. The single regression tree, bagging, random forest, and boosting all performed worse than lasso. Some of them even performed worse than the mean baseline.
+
+This suggests that lap-time prediction was difficult with the available predictors. Exact lap time likely depends on missing information such as traffic, fuel load, circuit layout, track conditions, and race events.
+
+\section{Classification Method Comparison}
+
+For \texttt{pit\_next\_lap} classification, boosting was the best model by AUC.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Classification method comparison. Higher AUC is better.}
+\begin{tabular}{lrrrrl}
+\toprule
+Method & Accuracy & Sensitivity & Specificity & AUC & Interpretability\\
+\midrule
+Boosting & 0.7909 & 0.6384 & 0.8649 & 0.8608 & Low\\
+Random forest & 0.7872 & 0.6512 & 0.8532 & 0.8499 & Low\\
+Bagging & 0.7781 & 0.6702 & 0.8305 & 0.8428 & Low\\
+Random forest benchmark & 0.7070 & 0.8636 & 0.6310 & 0.8271 & Low\\
+Neural network & 0.6876 & 0.8672 & 0.6005 & 0.7948 & Low\\
+RBF SVM & 0.3535 & 0.9973 & 0.0411 & 0.7859 & Low\\
+Classification tree, full tree & 0.7607 & 0.6679 & 0.8056 & 0.7818 & High\\
+Linear SVM & 0.6882 & 0.5971 & 0.7324 & 0.7328 & Medium\\
+Logistic regression & 0.6684 & 0.6861 & 0.6598 & 0.7243 & High\\
+KNN, \(k=3\) & 0.6198 & 0.7981 & 0.5333 & 0.7100 & Medium\\
+Majority baseline & 0.6733 & 0.0000 & 1.0000 & 0.5000 & High\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Boosting had the strongest classification AUC, so it is the best raw prediction model for \texttt{pit\_next\_lap}. Random forest and bagging were also strong. These ensemble models were better than the single classification tree, KNN, SVM, logistic regression, and the neural network.
+
+\section{Best Regression Method}
+
+The best regression method was lasso with \(\lambda_{\min}\). It had test RMSE \(=10.4757\), which was slightly better than ridge regression with test RMSE \(=10.5020\).
+
+Lasso is also a practical choice because it is still more interpretable than black-box methods. It shrinks coefficients and can remove weaker predictors. For this project, lasso gave the best regression performance while still staying easier to explain than random forest, boosting, or neural networks.
+
+\section{Best Classification Method}
+
+The best classification method by AUC was boosting. It had AUC \(=0.8608\), accuracy \(=0.7909\), sensitivity \(=0.6384\), and specificity \(=0.8649\).
+
+This means boosting had the strongest overall ability to rank pit-next-lap cases. It did not have the highest sensitivity, but it had the best overall AUC and a good balance between catching pit stops and avoiding false alarms.
+
+\section{Best Interpretable Classification Method}
+
+The best high-interpretability classification option was the full classification tree. It had AUC \(=0.7818\), accuracy \(=0.7607\), sensitivity \(=0.6679\), and specificity \(=0.8056\).
+
+The classification tree did not beat boosting, random forest, or bagging by AUC. However, it was much easier to explain. It gave direct if-then rules based on variables like tire life, stint, race progress, and year.
+
+This matters because in a real strategy discussion, a model that can be explained clearly may be more useful than a black-box model with slightly better performance.
+
+\section{Where Interpretability Beat Raw Accuracy}
+
+Interpretability mattered most when the goal was explanation instead of pure prediction.
+
+For example, boosting was the best classification model by AUC, but it is not as easy to explain as a decision tree. A decision tree shows the actual splits used to make predictions. Logistic regression is also easier to explain because it gives coefficients and odds/probability interpretations.
+
+So, if the goal is to make the strongest prediction, boosting is the better choice. If the goal is to explain the model to a reader, professor, or racing team, logistic regression or a decision tree may be better.
+
+This is one of the main lessons from the project. Raw accuracy is not the only thing that matters. A model also needs to fit the purpose of the analysis.
+
+\section{Final Practical Recommendation}
+
+For the regression task, I would use lasso regression for \texttt{lap\_time\_s}. It had the best test RMSE and stayed reasonably interpretable.
+
+For the classification task, I would use boosting for \texttt{pit\_next\_lap}. It had the strongest AUC and performed best overall among the classification models.
+
+For explanation-focused work, I would also keep logistic regression and the classification tree. These models are not the highest-performing models, but they are easier to explain and still give useful insight into the structure of the problem.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Final model recommendations.}
+\begin{tabular}{lll}
+\toprule
+Goal & Recommended Method & Reason\\
+\midrule
+Best lap-time regression & Lasso & Lowest test RMSE\\
+Best pit-next-lap classification & Boosting & Highest AUC\\
+Best interpretable classifier & Classification tree & Clear if-then rules\\
+Best explanation backup & Logistic regression & Coefficients and probability interpretation\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Caveats and Limitations}
+
+The final recommendations are based on the available dataset, not on a complete Formula 1 strategy database. The dataset does not include important race-status and circuit-condition variables such as Safety Car, Virtual Safety Car, yellow flags, red flags, track temperature, air temperature, circuit length, or pit lane time loss.
+
+This limitation affects every method. Some pit stops may look unexpected in the data, but they may actually be caused by race events that are not recorded in the dataset.
+
+Because of this, the final recommendation should be viewed as a comparison of statistical learning methods, not as a complete pit-wall strategy system.
+
+\section{Conclusion}
+
+The main result is that no single method was best for everything. Lasso was best for lap-time regression, boosting was best for pit-next-lap classification, and simpler models were still useful when interpretation mattered.
+
+Overall, the project shows why model comparison is important. A more complex model is not automatically better, and the best method depends on whether the goal is prediction, explanation, or practical decision-making.
+
+% ============================================================
+% Chapter 15
+% ============================================================
+
+\chapter{Reflection and Limitations}
+\chapterquote{The project showed that stronger prediction and clearer explanation are not always the same goal.}
+
+\section{What Was Learned About the Data}
+
+The biggest thing I learned is that Formula 1 lap data is complicated, even when the dataset looks clean. Lap time and pit strategy are not only about tire life or race progress. They also depend on race context, driver behavior, circuit layout, team strategy, traffic, weather, and race events.
+
+The lap-time regression task was harder than the pit-next-lap classification task. Several flexible models did not improve lap-time prediction as much as expected. In some cases, tree-based regression models performed worse than the mean baseline on the 2025 test set. This suggests that exact lap time depends on important information that is missing from the dataset.
+
+The classification task was more successful. Tire life, race progress, stint, year, and related variables gave useful information for predicting whether a driver would pit on the next lap. Boosting, random forest, and bagging all performed well for this task.
+
+\section{What Was Learned About the Methods}
+
+The simpler methods were useful because they gave a clear starting point. Simple linear regression and multiple linear regression were easy to explain, but they were limited for predicting lap time. Logistic regression was a strong first classification model because it gave interpretable probabilities and odds ratios.
+
+Cross-validation and bootstrap were important because they showed that training results are not enough. Cross-validation gave a better sense of held-out performance, and the bootstrap showed how stable the tire-life slope was in the sample.
+
+Ridge and lasso were the best methods for the regression side of the project. They handled many predictors better than ordinary linear regression. Lasso gave the best test RMSE and was still more interpretable than black-box methods.
+
+Decision trees were useful for explanation. The classification tree gave readable if-then rules, especially around tire life, stint, race progress, and year. However, a single tree was not always the best prediction model.
+
+Tree ensembles were the strongest classification methods. Boosting had the best AUC for predicting \texttt{pit\_next\_lap}. Random forest and bagging were also strong. These models were less interpretable than one tree, but they performed better.
+
+SVM, KNN, and the neural network were useful comparison models. The RBF SVM ranked cases fairly well, but its default threshold created too many false positives. KNN caught many actual pit-next-lap cases, but also created many false alarms. The neural network improved over logistic regression, but it did not beat the random forest benchmark.
+
+PCA was useful for understanding structure in the numeric predictors. The first few principal components explained a large share of the numeric predictor variance, but PC1 and PC2 did not cleanly separate pit-next-lap cases.
+
+\section{Main Limitations}
+
+The biggest limitation is that the dataset does not include race-status or circuit-condition features. For example, it does not include Safety Car, Virtual Safety Car, yellow flags, red flags, circuit length, track temperature, air temperature, normal pit stop time loss, Safety Car pit stop time loss, or circuit layout.
+
+This matters because some pit stops may look strange in the data even when they were good strategy decisions in the real race. A driver might pit because of a safety car, changing conditions, or a strategy call, but the model cannot see that information.
+
+Another limitation is that some of the more computationally expensive methods had to be trained on balanced samples instead of the full training data. This was done so the scripts could run on a regular laptop. The final evaluation still used the full 2025 test set, but using smaller training samples may have limited some models.
+
+The project also used a fixed 0.50 threshold for most classification models. This made the results easier to compare, but a real pit-stop warning tool would probably tune the threshold based on the cost of false positives and false negatives.
+
+\section{Possible Data Leakage}
+
+The project avoids the most obvious leakage issue by not using \texttt{pit\_stop} as a regular predictor for \texttt{pit\_next\_lap}. This matters because knowing whether a driver pitted on the current lap could make next-lap prediction unrealistic or too easy.
+
+The project also uses a year-based train-test split instead of a random row split. This helps avoid race-context leakage because laps from the same race are connected. The 2025 season was kept untouched until final model evaluation.
+
+Even with these choices, leakage is still something to be careful about. Any variable that would not realistically be known before the next-lap decision should be treated carefully.
+
+\section{What Would Come Next}
+
+If I had more time and better data, the next step would be to add race-status and circuit-condition variables. The most important additions would be Safety Car, Virtual Safety Car, yellow flags, red flags, track temperature, air temperature, tire availability, pit lane time loss, and circuit length.
+
+I would also tune classification thresholds instead of only using 0.50. For pit-stop prediction, the best threshold depends on the goal. If the goal is to catch possible pit stops, a lower threshold may be better. If the goal is to avoid false alarms, a higher threshold may be better.
+
+Another improvement would be to build models separately by circuit or include stronger race-level effects. Formula 1 tracks are very different, so one global model may miss circuit-specific behavior.
+
+Finally, I would compare the final models using a cleaner deployment-style setup. That means asking: what information would a team actually know before the next lap, and how would the model be used during a race? That would turn the project from a methods comparison into a more realistic strategy tool.
+
+\section{Final Takeaway}
+
+The final recommendation is to use lasso for lap-time regression and boosting for pit-next-lap classification. Lasso gave the best regression test RMSE, and boosting gave the best classification AUC.
+
+At the same time, simpler models still mattered. Logistic regression and decision trees were easier to explain, even when they were not the strongest models. That was one of the main lessons from the project: the best model depends on whether the goal is prediction, explanation, or practical decision-making.
+% ============================================================
+% References
+% ============================================================
+
+\backmatter
+\renewcommand{\bibname}{References}
+\nocite{islr2}
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
